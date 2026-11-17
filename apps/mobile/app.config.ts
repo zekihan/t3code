@@ -1,5 +1,6 @@
 import type { ExpoConfig } from "expo/config";
 
+import withMesh from "./plugins/withMesh.cjs";
 import { BRAND_ASSET_PATHS } from "../../scripts/lib/brand-assets.ts";
 import { loadRepoEnv } from "../../scripts/lib/public-config.ts";
 
@@ -498,4 +499,4 @@ const config: ExpoConfig = {
   },
 };
 
-export default config;
+export default withMesh(config);
