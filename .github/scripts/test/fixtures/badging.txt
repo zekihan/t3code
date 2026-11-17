@@ -1,0 +1,5 @@
+package: name='com.noqer.t3mesh' versionCode='481401' versionName='0.1.11-nightly.20261117.4814+mesh.1' platformBuildVersionName='16' platformBuildVersionCode='36' compileSdkVersion='36' compileSdkVersionCodename='16'
+sdkVersion:'26'
+targetSdkVersion:'36'
+uses-permission: name='android.permission.INTERNET'
+application-label:'T3 Mesh'
