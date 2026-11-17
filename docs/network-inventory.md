@@ -98,3 +98,21 @@ server's sandbox header and change the app's base URL. So the surface is refused
   fails rather than prompting for a certificate.
 - Deep links `.../devices` and `.../browser`, the tablet inspector and the floating player show the
   unavailable view without creating a WebView.
+
+## Emulator verification (2026-11-18)
+
+Release build of `stack/a1` for x86_64 on the Pixel 8 API 37 emulator, against an isolated
+`t3 serve` behind Caddy with `client_auth require_and_verify` on `https://10.0.2.2:8443` (test CA
+installed as a user CA, client identity installed into KeyChain from a PKCS#12):
+
+- The KeyChain picker names the requesting server `10.0.2.2:8443`; the alias is stored for
+  `https://10.0.2.2:8443/`.
+- With a 20-day test certificate, the connection form shows "The selected certificate expires in
+  20 days."
+- Pairing, `/api/auth/session`, the orchestration snapshot and the RPC WebSocket all pass through
+  the mTLS proxy; the environment shows Connected. A cold start reconnects the WebSocket.
+- The first attempt failed with "client didn't provide a certificate": expo-app-metrics had
+  replaced React Native's client factory (see "Client factory owner" in android-fork.md). Fixed by
+  `T3CertificateTransport.reassert()`.
+- Not yet exercised: chat, attachments, media, the leased WebView pages, alias replacement with an
+  open WebSocket. The isolated server had no project or provider.
