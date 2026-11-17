@@ -50,4 +50,8 @@ The `main` workflows read all of this from `main`, never from the artifact.
 
 - The build job's output is hostile; the release job checks the APK's fields with
   pinned tools but cannot prove the code is benign (accepted risk in the plan).
+- The release job verifies the base tag against upstream and the compare API
+  (`verify-base.sh`), so a hostile build cannot inflate the versionCode.
+- The daily check skips a `candidate` whose stack has fewer commits than `mesh`'s,
+  so a partial stack left by a rebase conflict is never built.
 - The daily check re-dispatches a tip whose build failed each day until it is fixed.
