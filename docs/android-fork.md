@@ -98,10 +98,13 @@ the owner's own devices. It builds on the
 - **WebViews.** Android caches a WebView's certificate decision per host and port
   for the whole WebView data directory, so an allowlist in
   `onReceivedClientCertRequest` cannot keep one surface from using another's
-  decision. At the pinned nightly six surfaces render local or inline content
-  (source view, MCP apps through the native bridge, the natively downloaded PDF,
-  and file and HTML previews, which A1 confirms load a downloaded file). In the
-  main process every WebView cancels certificate requests.
+  decision. At the pinned nightly the source view and the natively downloaded PDF
+  render local or inline content. The file and HTML previews loaded the signed
+  environment URL directly, so the fork downloads them through the certificate
+  transport and loads the local file; an MCP app on an origin with a certificate
+  shows as unavailable, because its iframe cannot load a local file (see
+  [network-inventory.md](network-inventory.md)). In the main process every WebView
+  cancels certificate requests.
 - **Stream process.** The device stream and the browser preview stream run a script
   inside the WebView that connects to the T3 server. They move into a native
   Activity in a separate `:stream` process with its own WebView data directory
@@ -132,8 +135,17 @@ the owner's own devices. It builds on the
   and no `T3CODE_ANDROID_GOOGLE_SERVICES_FILE`. OTLP tracing defaults to
   `https://api.axiom.co/v1/traces`, so the build sets no traces token and the
   plugin clears the URL. The fork's config plugin also removes `updates.url`,
-  `extra.eas.projectId`, `owner`, the `app.t3.codes` verified intent filter and the
-  `expo-notifications` and Clerk plugins.
+  `owner`, the `app.t3.codes` verified intent filter and the `expo-notifications`
+  and Clerk plugins. `extra.eas.projectId` becomes a nil UUID rather than being
+  removed: expo-observe's native module refuses to start without one, which kills
+  app start-up.
+- **Client factory owner.** expo-app-metrics (pulled in by expo-observe) replaces
+  React Native's `OkHttpClientFactory` from Expo's lifecycle dispatcher, after the
+  transport installs its own, which silently drops the client certificate. The
+  transport takes the factory back at the end of `MainApplication.onCreate`,
+  wrapping the replacement so its interceptors stay. A rebase that adds another
+  library doing this is caught only on a device, so the weekly phone check pairs
+  against an mTLS host.
 - **Network security config.** Upstream trusts user CAs and allows cleartext for
   every host. The fork adds a `domain-config` for `mesh.noqer.com` and its
   subdomains with system trust anchors only and no cleartext.
