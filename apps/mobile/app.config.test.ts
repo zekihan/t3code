@@ -33,15 +33,14 @@ it.each([
 ])("keeps the iOS and Android identifiers for APP_VARIANT=%j", async (value, identifier) => {
   const config = await loadConfig(value);
   expect(config.ios?.bundleIdentifier).toBe(identifier);
-  expect(config.android?.package).toBe(identifier);
+  // The mesh fork installs beside the official app, so Android no longer follows the variant.
+  expect(config.android?.package).toBe("com.noqer.t3mesh");
   // Copied thread links open this app only while app.t3.codes lists it.
   const host = new URL(DEFAULT_HOSTED_APP_URL).host;
   expect(config.ios?.associatedDomains).toContain(`applinks:${host}`);
   expect(appleAppSiteAssociation.applinks.details[0]?.appIDs).toContain(
     `${config.ios?.appleTeamId}.${identifier}`,
   );
-  expect(config.android?.intentFilters?.[0]?.data).toEqual([
-    { scheme: "https", host, pathPrefix: "/threads/" },
-  ]);
+  expect(config.android?.intentFilters).toEqual([]);
   expect(assetLinks.map((link) => link.target.package_name)).toContain(identifier);
 });
