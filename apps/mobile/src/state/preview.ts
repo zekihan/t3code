@@ -16,6 +16,7 @@ import { AsyncResult, Atom } from "effect/reactivity";
 
 import { connectionAtomRuntime } from "../connection/runtime";
 import { appAtomRegistry } from "./atom-registry";
+import { streamSurfacesEnabled } from "../features/mesh/streamSurfaces";
 import { useEnvironmentQuery } from "./query";
 import { environmentSession, usePreparedConnection } from "./session";
 
@@ -129,7 +130,7 @@ export function useThreadServerBrowserTabs(input: {
   readonly enabled: boolean;
 }) {
   const tabs = useAtomValue(
-    input.enabled
+    input.enabled && streamSurfacesEnabled
       ? threadPreviewTabsAtom(
           scopedThreadKey({ environmentId: input.environmentId, threadId: input.threadId }),
         )

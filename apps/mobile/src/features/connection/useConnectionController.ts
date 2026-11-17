@@ -16,6 +16,7 @@ import {
   connectPairingUrl as connectPairingUrlAtom,
   updateBearerConnection,
 } from "../../connection/onboarding";
+import { removeEnvironmentKeepingCertificates } from "../../lib/clientCertificatesEnvironment";
 import { useWorkspaceEnvironments } from "../../state/workspace";
 import { relayEnvironmentDiscovery } from "../../state/relay";
 import { useAtomCommand } from "../../state/use-atom-command";
@@ -82,7 +83,9 @@ export function useConnectionController() {
       }),
     );
   const removeEnvironment = (environmentId: EnvironmentId) =>
-    removeEnvironmentMutation(environmentId);
+    removeEnvironmentKeepingCertificates(connectedEnvironments, environmentId, () =>
+      removeEnvironmentMutation(environmentId),
+    );
   const setEnvironmentEnabled = (environmentId: EnvironmentId, enabled: boolean) =>
     setEnvironmentEnabledMutation({ environmentId, enabled });
   const updateEnvironment = (

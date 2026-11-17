@@ -14,6 +14,8 @@ import type { DeviceStreamStatus } from "@t3tools/client-runtime/device/stream";
 
 import { AppActivityIndicator } from "../../components/ui/AppActivityIndicator";
 import { AppText } from "../../components/ui/AppText";
+import { StreamSurfaceUnavailable } from "../mesh/CertificateSurfaceState";
+import { streamSurfacesEnabled } from "../mesh/streamSurfaces";
 
 import {
   deviceStreamBaseUrl,
@@ -35,7 +37,12 @@ type NativeStreamBridge = {
   readonly onInputConnected: (connected: boolean) => Promise<void>;
 };
 
-export function DeviceStreamWebView({
+export function DeviceStreamWebView(props: DeviceStreamConfiguration & NativeStreamBridge) {
+  if (!streamSurfacesEnabled) return <StreamSurfaceUnavailable />;
+  return <EnabledDeviceStreamWebView {...props} />;
+}
+
+function EnabledDeviceStreamWebView({
   ref,
   ...props
 }: DeviceStreamConfiguration & NativeStreamBridge) {
