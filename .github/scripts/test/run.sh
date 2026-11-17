@@ -244,13 +244,48 @@ expect_out "release-info: no stable release" "" "$S/release-info.sh" target-sdk 
 # ---- gh stubs: daily-check and check-ref -----------------------------------
 stub="$tmp/stub"
 mkdir -p "$stub"
-tip=$(printf 'c%.0s' {1..40})
+# Fixture fork: upstream tags .10 and .11; mesh = 2 commits on .10, candidate = 3 commits on .10.
+fk="$tmp/fixturefork"
+git init -q "$fk"
+(
+  cd "$fk" || exit 1
+  git config user.email t@t
+  git config user.name t
+  git config uploadpack.allowFilter true
+  c() { git commit -q --allow-empty -m "$1"; }
+  c a10
+  git update-ref refs/tags/v0.2.0-nightly.20261201.10 HEAD
+  git branch base10
+  c s1
+  git branch partial
+  c s2
+  git branch mesh
+  c s3
+  git branch candidate
+  git branch full
+  git checkout -q base10
+  c a11
+  git update-ref refs/tags/v0.2.0-nightly.20261201.11 HEAD
+  c t1
+  c t2
+  git branch rebased
+  git checkout -q candidate
+  git branch -D base10 >/dev/null 2>&1
+)
+tip="$(git -C "$fk" rev-parse candidate)"
+mesh_sha="$(git -C "$fk" rev-parse mesh)"
+a11_sha="$(git -C "$fk" rev-parse v0.2.0-nightly.20261201.11)"
+export STUB_DIVERGED="$a11_sha" REPO_URL="file://$fk" UPSTREAM_URL="$fk"
 cat >"$stub/gh" <<'STUB'
 #!/usr/bin/env bash
 echo "gh $*" >>"$STUB_LOG"
 case "$*" in
   "api repos/r/git/ref/heads/candidate --jq .object.sha") echo "$STUB_TIP" ;;
   "api repos/r/compare/mesh...candidate --jq .status") echo "${STUB_STATUS:-ahead}" ;;
+  "api repos/r/compare/"*)
+    sha="${2#repos/r/compare/}"; sha="${sha%%...*}"
+    if [[ $sha == "${STUB_ANCESTOR:-none}" ]]; then printf 'ahead\t1\t0\n';
+    elif [[ $sha == "${STUB_DIVERGED:-none}" ]]; then printf 'diverged\t5\t5\n'; else printf '%b\n' "${STUB_COMPARE:-ahead\\t2\\t0}"; fi ;;
   pr\ list*) echo "${STUB_PRS:-0}" ;;
   "api --paginate repos/r/releases?per_page=100"*) printf '%s\n' "${STUB_RELEASES:-}" ;;
   run\ list*) echo "${STUB_RUNS:-[]}" ;;
@@ -261,6 +296,7 @@ esac
 STUB
 chmod +x "$stub/gh"
 export STUB_LOG="$tmp/gh.log" STUB_TIP="$tip" GH_REPO=r
+run_daily_at() { git -C "$fk" update-ref refs/heads/candidate "$(git -C "$fk" rev-parse "$1")"; run_daily; }
 run_daily() { : >"$STUB_LOG"; PATH="$stub:$PATH" "$S/daily-check.sh" 2>&1; }
 out="$(run_daily)"; grep -q 'dispatching release.yml' <<<"$out" && grep -q "workflow run release.yml --repo r --ref main -f commit=$tip" "$STUB_LOG" && ok || bad "daily: dispatches" "$out"
 out="$(STUB_STATUS=identical run_daily)"; grep -q 'nothing to build' <<<"$out" && ! grep -q 'workflow run' "$STUB_LOG" && ok || bad "daily: identical" "$out"
@@ -273,6 +309,26 @@ out="$(STUB_RELEASES='{"tag_name":"v1","target_commitish":"main","body":"t3mesh-
 out="$(STUB_RUNS="[{\"status\":\"in_progress\",\"displayTitle\":\"Release $tip\"}]" run_daily)"; grep -q 'queued or running' <<<"$out" && ! grep -q 'workflow run' "$STUB_LOG" && ok || bad "daily: run in progress" "$out"
 out="$(STUB_RUNS="[{\"status\":\"completed\",\"displayTitle\":\"Release $tip\"}]" run_daily)"; grep -q 'dispatching' <<<"$out" && ok || bad "daily: completed run does not block" "$out"
 out="$(DRY_RUN=1 run_daily)"; grep -q 'would dispatch' <<<"$out" && ! grep -q 'workflow run' "$STUB_LOG" && ok || bad "daily: dry run" "$out"
+# partial stack guard
+partial="$(git -C "$fk" rev-parse partial)"
+rebased="$(git -C "$fk" rev-parse rebased)"
+out="$(STUB_TIP="$partial" run_daily_at partial)"; grep -q 'partial stack is not built' <<<"$out" && ! grep -q 'workflow run' "$STUB_LOG" && ok || bad "daily: partial stack skipped" "$out"
+out="$(STUB_TIP="$rebased" run_daily_at rebased)"; grep -q 'dispatching' <<<"$out" && grep -q 'candidate has 2 stack commits on v0.2.0-nightly.20261201.11, mesh has 2' <<<"$out" && ok || bad "daily: equal stack on a newer base builds" "$out"
+out="$(STUB_TIP="$tip" run_daily_at full)"; grep -q 'candidate has 3 stack commits' <<<"$out" && grep -q 'dispatching' <<<"$out" && ok || bad "daily: larger stack builds" "$out"
+out="$(STUB_TIP="$partial" run_daily_at candidate)"; grep -q 'candidate moved' <<<"$out" && ! grep -q 'workflow run' "$STUB_LOG" && ok || bad "daily: candidate moved during the check" "$out"
+out="$(UPSTREAM_URL="$tmp/nonexistent" run_daily)"; ! grep -q 'workflow run' "$STUB_LOG" && ok || bad "daily: tag lookup failure does not dispatch" "$out"
+
+# verify-base
+vb() { PATH="$stub:$PATH" "$S/verify-base.sh" "$@"; }
+expect_ok "verify-base: accepts the stack on its base" vb v0.2.0-nightly.20261201.10 "$mesh_sha"
+expect_fail "verify-base: unknown tag" "no tag" vb v0.2.0-nightly.20261201.99999 "$mesh_sha"
+expect_fail "verify-base: build number far above upstream" "no tag" vb v0.2.0-nightly.20261201.20999999 "$mesh_sha"
+expect_fail "verify-base: not directly ahead" "not directly ahead" env STUB_COMPARE='diverged\t3\t1' PATH="$stub:$PATH" "$S/verify-base.sh" v0.2.0-nightly.20261201.10 "$mesh_sha"
+expect_fail "verify-base: stack too large" "allowed 1..50" env STUB_COMPARE='ahead\t51\t0' PATH="$stub:$PATH" "$S/verify-base.sh" v0.2.0-nightly.20261201.10 "$mesh_sha"
+expect_fail "verify-base: preview tag" "unexpected format" vb v0.2.0-preview.20261201.10 "$mesh_sha"
+expect_fail "verify-base: a newer nightly is an ancestor" "newer nightly" env STUB_ANCESTOR="$a11_sha" PATH="$stub:$PATH" "$S/verify-base.sh" v0.2.0-nightly.20261201.10 "$mesh_sha"
+expect_ok "verify-base: newest tag has nothing newer to check" env STUB_DIVERGED=none PATH="$stub:$PATH" "$S/verify-base.sh" v0.2.0-nightly.20261201.11 "$mesh_sha"
+
 expect_ok "check-ref: matches" env PATH="$stub:$PATH" "$S/check-ref.sh" heads/candidate "$tip"
 expect_fail "check-ref: moved" "now points at" env PATH="$stub:$PATH" STUB_REF_SHA="$(printf 'd%.0s' {1..40})" "$S/check-ref.sh" heads/candidate "$tip"
 expect_fail "check-ref: annotated tag" "plain commit ref" env PATH="$stub:$PATH" STUB_REF_TYPE=tag "$S/check-ref.sh" tags/v1 "$tip"

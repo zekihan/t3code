@@ -43,6 +43,41 @@ if jq -e --arg t "Release $tip" 'any(.[]; .displayTitle == $t and .status != "co
   exit 0
 fi
 
+# Do not build a partial stack: after a rebase conflict the weekly task pushes
+# candidate with only the commits that applied, and the fix PR may not exist yet.
+# Compare stack sizes above each branch's own nightly base; no code is executed.
+work="$(mktemp -d)"
+trap 'rm -rf "$work"' EXIT
+url="${REPO_URL:-${GITHUB_SERVER_URL:-https://github.com}/$repo}"
+stack_size() {
+  local base
+  base="$("$here/base-tag.sh" "refs/remotes/origin/$1")" || return 1
+  echo "$(git rev-list --count "refs/upstream-tags/$base..refs/remotes/origin/$1") $base"
+}
+guard="$(
+  cd "$work"
+  git init -q .
+  git fetch -q --no-tags --filter=blob:none "$url" \
+    '+refs/heads/mesh:refs/remotes/origin/mesh' '+refs/heads/candidate:refs/remotes/origin/candidate'
+  "$here/fetch-upstream-tags.sh" "${UPSTREAM_URL:-https://github.com/pingdotgg/t3code}" >/dev/null
+  fetched="$(git rev-parse refs/remotes/origin/candidate)"
+  if [[ $fetched != "$tip" ]]; then
+    echo "skip candidate moved to $fetched while checking"
+    exit 0
+  fi
+  c="$(stack_size candidate)" || { echo "skip cannot determine candidate's base nightly"; exit 0; }
+  m="$(stack_size mesh)" || { echo "skip cannot determine mesh's base nightly"; exit 0; }
+  read -r cn cb <<<"$c"
+  read -r mn mb <<<"$m"
+  if ((cn < mn)); then
+    echo "skip candidate has $cn stack commits on $cb but mesh has $mn on $mb; a partial stack is not built"
+    exit 0
+  fi
+  echo "ok candidate has $cn stack commits on $cb, mesh has $mn on $mb"
+)"
+echo "$guard"
+[[ ${guard##*$'\n'} == ok\ * ]] || exit 0
+
 if [[ ${DRY_RUN:-} == 1 ]]; then
   echo "would dispatch release.yml for $tip"
   exit 0
