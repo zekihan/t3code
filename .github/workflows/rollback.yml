@@ -123,7 +123,7 @@ jobs:
           APKSIGNER_JAR_SHA256: ${{ steps.tc.outputs.apksigner_jar_sha256 }}
           ZIPALIGN_SHA256: ${{ steps.tc.outputs.zipalign_sha256 }}
           AAPT2_SHA256: ${{ steps.tc.outputs.aapt2_sha256 }}
-          EXTRA_SDK_PACKAGES: platforms;android-${{ steps.tc.outputs.android_platform_version }} ndk;${{ steps.tc.outputs.android_ndk_version }}
+          EXTRA_SDK_PACKAGES: platforms;android-${{ steps.tc.outputs.android_platform_version }} ndk;${{ steps.tc.outputs.android_ndk_version }} cmake;${{ steps.tc.outputs.android_cmake_version }}
         run: |
           npm install --global "pnpm@$PNPM_VERSION"
           "$SCRIPTS/install-android-sdk.sh" "$RUNNER_TEMP/android-sdk" > /dev/null
