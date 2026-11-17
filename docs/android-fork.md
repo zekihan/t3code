@@ -60,7 +60,7 @@ the owner's own devices. It builds on the
   `pingdotgg/t3code` with pushing disabled (`pushurl = no-push`), and local `main`,
   `mesh` and `candidate` track `origin`. Upstream tags come from `upstream`; the
   fork pushes no upstream tags.
-- **Branches.** `main`, the default branch, holds only the fork's workflows and is
+- **Branches.** `main`, the default branch, holds only the fork's workflows and docs and is
   protected. `candidate` receives each rebased stack; `mesh` is moved to a
   candidate only when its release publishes. The app's commits stay a small stack
   on top of an upstream nightly tag.

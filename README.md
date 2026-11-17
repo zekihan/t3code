@@ -9,7 +9,7 @@ This repository is a standalone copy of `pingdotgg/t3code`, not a GitHub fork.
 
 | Branch | Holds |
 |---|---|
-| `main` | The build's workflows only |
+| `main` | The build's workflows and the plan |
 | `candidate` | Each rebased stack, before it is released |
 | `mesh` | The stack of the newest published release, on top of an upstream nightly tag |
 
