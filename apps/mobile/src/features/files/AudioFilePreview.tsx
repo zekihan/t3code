@@ -7,6 +7,7 @@ import { AppText as Text } from "../../components/ui/AppText";
 import { useFullscreenVideoOpen, useMediaAudioSessionHold } from "../../lib/videoAudioSession";
 import { createAudioPlaybackSession } from "../../lib/audioSession";
 import { usePlaybackAudioPlayer } from "../voice-input/usePlaybackAudioPlayer";
+import { useCertificateLocalUri } from "../mesh/useCertificateLocalUri";
 
 function timestamp(seconds: number) {
   const value = Number.isFinite(seconds) ? Math.max(0, Math.floor(seconds)) : 0;
@@ -14,7 +15,8 @@ function timestamp(seconds: number) {
 }
 
 export function AudioFilePreview(props: { uri: string; onRetry: () => void }) {
-  const player = usePlaybackAudioPlayer(props.uri);
+  const media = useCertificateLocalUri(props.uri);
+  const player = usePlaybackAudioPlayer(media.uri);
   const gt = useGT();
   const status = useAudioPlayerStatus(player);
   const [playbackRequested, setPlaybackRequested] = useState(false);
@@ -87,7 +89,7 @@ export function AudioFilePreview(props: { uri: string; onRetry: () => void }) {
           onPress={() => seek(Math.min(status.duration, status.currentTime + 15))}
         />
       </View>
-      {status.error || seekError ? (
+      {status.error || seekError || media.state === "failed" ? (
         <View className="items-center gap-3">
           <Text className="text-center text-foreground">
             <T>This audio could not be played. Try again or save it to open in another app.</T>
