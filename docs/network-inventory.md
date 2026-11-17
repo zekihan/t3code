@@ -114,5 +114,8 @@ installed as a user CA, client identity installed into KeyChain from a PKCS#12):
 - The first attempt failed with "client didn't provide a certificate": expo-app-metrics had
   replaced React Native's client factory (see "Client factory owner" in android-fork.md). Fixed by
   `T3CertificateTransport.reassert()`.
-- Not yet exercised: chat, attachments, media, the leased WebView pages, alias replacement with an
-  open WebSocket. The isolated server had no project or provider.
+- Changing the environment to a second identity while connected closes the open WebSocket; the
+  environment document, ticket, snapshot and the new WebSocket arrive with the second identity's CN,
+  without an app restart. The expiry warning goes away for the 200-day certificate.
+- Not yet exercised: chat, attachments, media and the leased WebView pages. The isolated server
+  had no project.
