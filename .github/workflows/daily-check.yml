@@ -1,0 +1,37 @@
+name: Daily check
+
+# Builds a merged fix whose build never ran: dispatches the release workflow for
+# candidate's tip when candidate is ahead of mesh, no PR targets candidate, no
+# release was built from the tip and no release run for it is queued or running.
+# It runs no candidate code and holds no secrets; the token may only dispatch.
+on:
+  schedule:
+    # Avoid minute zero, when GitHub scheduled jobs are busiest.
+    - cron: "37 5 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  check:
+    name: Check candidate
+    if: github.repository == 'zekihan/t3code' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+      actions: write
+    steps:
+      - name: Checkout main (scripts only)
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ github.sha }}
+          sparse-checkout: .github/scripts
+          persist-credentials: false
+
+      - name: Dispatch the release when candidate has no build
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: .github/scripts/daily-check.sh
