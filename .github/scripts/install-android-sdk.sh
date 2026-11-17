@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# Install the pinned Android build tools into a fresh directory and verify them.
+# Install the pinned Android SDK pieces into a fresh directory and verify them.
 #
-# usage: install-build-tools.sh <sdk root>
+# usage: install-android-sdk.sh <sdk root>
 # env:   ANDROID_CMDLINE_TOOLS_VERSION  zip number, e.g. 11076708
 #        ANDROID_CMDLINE_TOOLS_SHA256   pinned digest of that zip
 #        ANDROID_BUILD_TOOLS_VERSION    e.g. 36.0.0
 #        APKSIGNER_JAR_SHA256 ZIPALIGN_SHA256 AAPT2_SHA256
+#        EXTRA_SDK_PACKAGES             optional, space-separated, e.g. "platforms;android-36 ndk;27.1.12297006"
 #
 # Integrity: the cmdline-tools zip must match the digest pinned on main;
 # sdkmanager then verifies the build-tools package against the checksum in
@@ -39,7 +40,12 @@ mv "$work/unpacked/cmdline-tools" "$root/cmdline-tools/latest"
 sdkmanager="$root/cmdline-tools/latest/bin/sdkmanager"
 # `yes` ends with SIGPIPE once sdkmanager stops reading; that is expected.
 { yes || true; } | "$sdkmanager" --sdk_root="$root" --licenses >/dev/null
-"$sdkmanager" --sdk_root="$root" "build-tools;$bt_version" >/dev/null
+packages=("build-tools;$bt_version")
+for pkg in ${EXTRA_SDK_PACKAGES:-}; do
+  require_match "SDK package" '^[a-z0-9;.-]+$' "$pkg"
+  packages+=("$pkg")
+done
+"$sdkmanager" --sdk_root="$root" "${packages[@]}" >/dev/null
 
 dir="$root/build-tools/$bt_version"
 check() {
