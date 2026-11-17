@@ -232,6 +232,16 @@ jobs:
           grep -qx "commit=$COMMIT" "$RUNNER_TEMP/meta.env" ||
             { echo "::error::metadata commit differs from the dispatched commit"; exit 1; }
 
+      # The artifact is hostile: a made-up base tag with a huge build number would
+      # push versionCode towards its cap. Check the tag against upstream and the
+      # stack against the API, without fetching candidate code.
+      - name: Verify the base tag independently
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE_TAG: ${{ steps.meta.outputs.base_tag }}
+        run: |
+          "$SCRIPTS/verify-base.sh" "$BASE_TAG" "$COMMIT"
+
       - name: Recompute the version from the published releases
         env:
           GH_TOKEN: ${{ github.token }}
