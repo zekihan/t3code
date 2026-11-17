@@ -47,6 +47,8 @@ import { enqueueThreadOutboxMessage } from "../../state/thread-outbox";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";
 import { MCP_APP_INLINE_MAX_HEIGHT, mcpAppInlineHeight } from "./mcpAppSizing";
+import { McpAppUnavailable } from "../mesh/CertificateSurfaceState";
+import { useHasClientCertificate } from "../mesh/useCertificateLocalUri";
 
 const ROW_BOTTOM_MARGIN = 8;
 
@@ -163,6 +165,7 @@ export function ThreadMcpApp(props: {
   };
   const asset = useAssetUrlState(props.environmentId, resource);
   if (uri === null && asset._tag === "Success") setUri(asset.url);
+  const certificateBlocked = useHasClientCertificate(uri);
   const [generation, setGeneration] = useState(0);
   const [crashed, setCrashed] = useState(false);
   const restart = () => {
@@ -516,6 +519,8 @@ export function ThreadMcpApp(props: {
     uri === null
       ? null
       : { html: outerDocument(uri, mcpAppAllowAttribute(app.permissions), secret) };
+
+  if (certificateBlocked) return <McpAppUnavailable server={app.server} />;
 
   if (presentedFullscreen) {
     return (

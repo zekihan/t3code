@@ -7,6 +7,7 @@ import type { VideoThumbnail } from "expo-video";
 import { useState } from "react";
 import { StyleSheet } from "react-native";
 
+import { loadCertificateMedia } from "../lib/certificateMedia";
 import type { DraftComposerFileAttachment } from "../lib/composerImages";
 import { loadLocalAttachmentPreview } from "../lib/localAttachmentPreview";
 import { cachedVideoThumbnail, loadVideoThumbnail } from "../lib/videoThumbnails";
@@ -24,7 +25,7 @@ const videoThumbnailAtom = Atom.family((target: VideoThumbnailTarget) =>
         target.cacheKey,
         async (sourceSignal) =>
           typeof target.source === "string"
-            ? { uri: target.source, dispose: () => undefined }
+            ? loadCertificateMedia(target.source, sourceSignal)
             : loadLocalAttachmentPreview(target.source, sourceSignal),
         signal,
       ),

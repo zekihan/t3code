@@ -16,6 +16,7 @@ import { type MediaActionsSource } from "../lib/mediaActionsSource";
 import { useMediaVideoPlayback } from "../lib/useMediaVideoPlayback";
 import { MediaActionsMenu } from "./MediaActionsMenu";
 import { createAudioPlaybackSession } from "../lib/audioSession";
+import { loadCertificateMedia } from "../lib/certificateMedia";
 
 function LoadedMediaVideo(props: {
   readonly uri: string;
@@ -69,6 +70,7 @@ function LoadedMediaVideo(props: {
     };
   }, [active, fullscreen, player, playback]);
   const { status } = useEvent(player, "statusChange", { status: player.status });
+  const mediaLease = useRef<(() => void) | null>(null);
   const loadSource = useEffectEvent(async (signal: AbortSignal) => {
     const playIfUninterrupted = createPlayRequest();
     const uri = props.resolvePlaybackUri ? await props.resolvePlaybackUri() : props.uri;
@@ -76,7 +78,16 @@ function LoadedMediaVideo(props: {
     if (uri === null) throw new Error("Video unavailable");
     playback.pause();
     previousPlaybackRequested.current = false;
-    await player.replaceAsync({ uri, contentType: "progressive" });
+    const media = await loadCertificateMedia(uri, signal);
+    if (signal.aborted) {
+      media.dispose();
+      return;
+    }
+    const previousLease = mediaLease.current;
+    mediaLease.current = media.dispose;
+    await player
+      .replaceAsync({ uri: media.uri, contentType: "progressive" })
+      .finally(() => previousLease?.());
     if (!signal.aborted && props.playRequested) await playIfUninterrupted();
   });
 
@@ -94,7 +105,11 @@ function LoadedMediaVideo(props: {
         if (!controller.signal.aborted) setLoadState("error");
       },
     );
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      mediaLease.current?.();
+      mediaLease.current = null;
+    };
     // oxlint-disable-next-line react/exhaustive-effect-dependencies -- A play request or Retry (attempt) reloads the source into the same player.
   }, [player, props.playRequested, attempt]);
 
@@ -176,7 +191,7 @@ function MediaVideoPlayerContent(props: MediaVideoPlayerProps) {
     const controller = new AbortController();
     void loadVideoThumbnail(
       props.thumbnailKey,
-      async () => ({ uri: sizeSource, dispose: () => undefined }),
+      () => loadCertificateMedia(sizeSource, controller.signal),
       controller.signal,
     ).then((thumbnail) => {
       if (thumbnail && !controller.signal.aborted) {

@@ -21,6 +21,8 @@ import { tryOpenExternalUrl } from "../../lib/openExternalUrl";
 import { useAssetUrlState, useRefreshAssetUrl } from "../../state/assets";
 import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";
 import { webViewDecelerationRate } from "../../lib/webViewDecelerationRate";
+import { CertificateLocalUriState } from "../mesh/CertificateSurfaceState";
+import { certificateWebViewProps, useCertificateLocalUri } from "../mesh/useCertificateLocalUri";
 
 const ROW_BOTTOM_MARGIN = 8;
 const ACTION_ROW_HEIGHT = 32;
@@ -83,6 +85,8 @@ export function HtmlRenderWebView(props: {
   readonly onLoadError?: () => void;
 }) {
   const theme = useHtmlRenderTheme();
+  const local = useCertificateLocalUri(props.uri);
+  const uri = local.uri ?? props.uri;
   const [initialTheme] = useState(theme);
   const [generation, setGeneration] = useState(0);
   const [loaded, setLoaded] = useState(false);
@@ -90,7 +94,7 @@ export function HtmlRenderWebView(props: {
   const webView = useRef<WebView<object>>(null);
   const crashes = useRef(0);
   const shownTheme = useRef<HtmlRenderTheme | null>(null);
-  const source = { uri: props.uri + htmlRenderThemeFragment(initialTheme) };
+  const source = { uri: uri + htmlRenderThemeFragment(initialTheme) };
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- posts theme changes into the already loaded WebView
   useEffect(() => {
     if (shownTheme.current === null || shownTheme.current === theme) return;
@@ -109,6 +113,7 @@ export function HtmlRenderWebView(props: {
     setGeneration((value) => value + 1);
   };
   const scrollable = !props.nested || overflow.x || overflow.y;
+  if (local.state !== "ready") return <CertificateLocalUriState state={local.state} />;
   return (
     <View
       style={
@@ -139,8 +144,7 @@ export function HtmlRenderWebView(props: {
         nestedScrollEnabled={props.nested && overflow.y}
         overScrollMode={props.nested ? "never" : "always"}
         onShouldStartLoadWithRequest={(request) =>
-          request.isTopFrame === false ||
-          withoutFragment(request.url) === withoutFragment(props.uri)
+          request.isTopFrame === false || withoutFragment(request.url) === withoutFragment(uri)
         }
         onOpenWindow={(event) => {
           const url = event.nativeEvent.targetUrl;
@@ -155,6 +159,7 @@ export function HtmlRenderWebView(props: {
         onHttpError={props.onLoadError}
         onContentProcessDidTerminate={restart}
         onRenderProcessGone={restart}
+        {...certificateWebViewProps(local)}
         {...(props.nested
           ? {
               injectedJavaScript: OVERFLOW_SCRIPT,
