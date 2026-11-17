@@ -68,6 +68,36 @@ expect_fail "base-tag rejects an oversize stack" "limit 1" env MAX_STACK=1 "$S/b
 expect_fail "base-tag rejects a commit with no nightly ancestor" "no upstream nightly" "$S/base-tag.sh" orphan
 cd "$T" || exit 1
 
+# ---- fetch-upstream-tags ------------------------------------------------------
+up="$tmp/upstream"
+git init -q "$up"
+(
+  cd "$up" || exit 1
+  git config user.email t@t
+  git config user.name t
+  git config tag.gpgSign false
+  git commit -q --allow-empty -m one
+  git tag v0.2.0-nightly.20261201.10
+  git commit -q --allow-empty -m two
+  git tag -a -m annotated v0.2.0-nightly.20261201.11
+  git tag v0.2.0-preview.20261201.12
+  git tag v0.2.0-nightly.garbage
+  git commit -q --allow-empty -m three
+  git tag v0.2.0-nightly.20261201.13
+)
+git clone -q --no-tags "$up" "$tmp/forkclone"
+git -C "$tmp/forkclone" reset -q --hard HEAD~1
+git -C "$tmp/forkclone" gc -q --prune=now 2>/dev/null
+cd "$tmp/forkclone" || exit 1
+git update-ref -d refs/remotes/origin/master 2>/dev/null; git update-ref -d refs/remotes/origin/main 2>/dev/null
+git reflog expire --expire=now --all; git gc -q --prune=now
+expect_ok "upstream-tags: records nightly tags" "$S/fetch-upstream-tags.sh" "$up"
+expect_out "upstream-tags: keeps only nightlies present locally, peels annotated" \
+  $'refs/upstream-tags/v0.2.0-nightly.20261201.10\nrefs/upstream-tags/v0.2.0-nightly.20261201.11' \
+  git for-each-ref --format='%(refname)' refs/upstream-tags
+expect_fail "upstream-tags: unreachable upstream" "ls-remote|does not appear|fatal" "$S/fetch-upstream-tags.sh" "$tmp/nonexistent"
+cd "$T" || exit 1
+
 # ---- compute-version --------------------------------------------------------
 rel="$tmp/releases.ndjson"
 : >"$rel"
