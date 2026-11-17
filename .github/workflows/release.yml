@@ -1,0 +1,348 @@
+name: Release
+run-name: Release ${{ inputs.commit }}
+
+# Builds a `candidate` commit without secrets, then signs and publishes it.
+#
+# Trust model:
+# - This file runs from `main`. The `release` environment only deploys from the
+#   branch `main`, so a copy of this workflow dispatched on any other ref can
+#   never reach the signing key; the `github.ref` guards below also skip it.
+# - `build` runs fetched upstream and dependency code. It has a read-only token,
+#   no secrets and no environment, and its output is hostile input.
+# - `release` checks out only `main`, restores no cache, runs no candidate code,
+#   re-validates everything it takes from the artifact and reads the APK only
+#   through the build tools pinned on `main`.
+# Nothing here pushes a branch; the tag is created through the releases API.
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: Full 40-character SHA of a commit on candidate
+        required: true
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  UPSTREAM_URL: https://github.com/pingdotgg/t3code
+  SCRIPTS: ${{ github.workspace }}/trusted/.github/scripts
+
+jobs:
+  build:
+    name: Build
+    if: github.repository == 'zekihan/t3code' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    env:
+      COMMIT: ${{ inputs.commit }}
+    steps:
+      - name: Checkout main (workflow scripts and toolchain)
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ github.sha }}
+          path: trusted
+          sparse-checkout: .github
+          persist-credentials: false
+
+      - name: Validate the input
+        run: |
+          # shellcheck source=/dev/null
+          source "$SCRIPTS/lib.sh"
+          require_match "commit input" "$RE_SHA" "$COMMIT"
+
+      # The repository is public, so the candidate commit is fetched without any
+      # credential; no token is ever written to disk next to code that builds.
+      - name: Fetch the candidate commit and upstream nightly tags
+        run: |
+          git init -q src
+          cd src
+          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+          git fetch --no-tags --filter=blob:none origin "$COMMIT" '+refs/heads/candidate:refs/remotes/origin/candidate'
+          git cat-file -e "$COMMIT^{commit}"
+          git merge-base --is-ancestor "$COMMIT" refs/remotes/origin/candidate ||
+            { echo "::error::$COMMIT is not on candidate"; exit 1; }
+          "$SCRIPTS/fetch-upstream-tags.sh" "$UPSTREAM_URL"
+
+      - id: base
+        name: Determine the base nightly tag
+        working-directory: src
+        run: |
+          tag="$("$SCRIPTS/base-tag.sh" "$COMMIT")"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "Base: $tag"
+
+      - name: List published releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+            --jq '.[] | {tag_name, prerelease, target_commitish, body: (.body // "")}' \
+            > "$RUNNER_TEMP/releases.ndjson"
+
+      - id: version
+        name: Compute versionName and versionCode
+        env:
+          BASE_TAG: ${{ steps.base.outputs.tag }}
+        run: |
+          "$SCRIPTS/compute-version.sh" release "$BASE_TAG" "$RUNNER_TEMP/releases.ndjson" | tee -a "$GITHUB_OUTPUT"
+
+      - id: tc
+        name: Load the toolchain set from main
+        run: |
+          "$SCRIPTS/load-toolchain.sh" trusted/.github/toolchain | tee -a "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: ${{ steps.tc.outputs.node_version }}
+          package-manager-cache: false
+
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: ${{ steps.tc.outputs.java_distribution }}
+          java-version: ${{ steps.tc.outputs.java_version }}
+
+      - name: Install pnpm and the Android SDK
+        env:
+          PNPM_VERSION: ${{ steps.tc.outputs.pnpm_version }}
+          ANDROID_CMDLINE_TOOLS_VERSION: ${{ steps.tc.outputs.android_cmdline_tools_version }}
+          ANDROID_CMDLINE_TOOLS_SHA256: ${{ steps.tc.outputs.android_cmdline_tools_sha256 }}
+          ANDROID_BUILD_TOOLS_VERSION: ${{ steps.tc.outputs.android_build_tools_version }}
+          APKSIGNER_JAR_SHA256: ${{ steps.tc.outputs.apksigner_jar_sha256 }}
+          ZIPALIGN_SHA256: ${{ steps.tc.outputs.zipalign_sha256 }}
+          AAPT2_SHA256: ${{ steps.tc.outputs.aapt2_sha256 }}
+          EXTRA_SDK_PACKAGES: platforms;android-${{ steps.tc.outputs.android_platform_version }} ndk;${{ steps.tc.outputs.android_ndk_version }}
+        run: |
+          npm install --global "pnpm@$PNPM_VERSION"
+          "$SCRIPTS/install-android-sdk.sh" "$RUNNER_TEMP/android-sdk" > /dev/null
+          {
+            echo "ANDROID_HOME=$RUNNER_TEMP/android-sdk"
+            echo "ANDROID_SDK_ROOT=$RUNNER_TEMP/android-sdk"
+          } >> "$GITHUB_ENV"
+
+      # From here on, code from the candidate commit and its dependencies runs.
+      - name: Check out the candidate tree
+        working-directory: src
+        run: git checkout -q --detach "$COMMIT"
+
+      - name: Install dependencies
+        working-directory: src
+        run: pnpm install --frozen-lockfile
+
+      - name: Mobile JavaScript tests
+        working-directory: src
+        run: pnpm --filter @t3tools/mobile test
+
+      - name: Prebuild the Android project
+        working-directory: src/apps/mobile
+        env:
+          APP_VARIANT: production
+          T3CODE_MOBILE_UPDATES_ENABLED: "0"
+          T3MESH_VERSION_NAME: ${{ steps.version.outputs.version_name }}
+          T3MESH_VERSION_CODE: ${{ steps.version.outputs.version_code }}
+          EXPO_NO_GIT_STATUS: "1"
+          CI: "1"
+        run: pnpm exec expo prebuild --clean --platform android --no-install
+
+      - name: Client-certificate module unit tests
+        working-directory: src/apps/mobile/android
+        env:
+          KOTLIN_TEST_TASK: ${{ steps.tc.outputs.kotlin_test_task }}
+        run: ./gradlew --no-daemon "$KOTLIN_TEST_TASK"
+
+      - name: Assemble the release APK
+        working-directory: src/apps/mobile/android
+        env:
+          APP_VARIANT: production
+          T3CODE_MOBILE_UPDATES_ENABLED: "0"
+          T3MESH_VERSION_NAME: ${{ steps.version.outputs.version_name }}
+          T3MESH_VERSION_CODE: ${{ steps.version.outputs.version_code }}
+        run: ./gradlew --no-daemon assembleRelease -PreactNativeArchitectures=arm64-v8a
+
+      - name: Collect the APK and metadata
+        env:
+          VERSION_NAME: ${{ steps.version.outputs.version_name }}
+          VERSION_CODE: ${{ steps.version.outputs.version_code }}
+          BASE_TAG: ${{ steps.base.outputs.tag }}
+          TOOLCHAIN_ID: ${{ steps.tc.outputs.toolchain_id }}
+        run: |
+          mkdir out
+          apks=(src/apps/mobile/android/app/build/outputs/apk/release/*.apk)
+          [ "${#apks[@]}" -eq 1 ] || { echo "::error::expected exactly one release APK, found ${#apks[@]}"; exit 1; }
+          cp "${apks[0]}" out/app.apk
+          "$SCRIPTS/write-metadata.sh" out/metadata.json
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-build
+          path: out/
+          if-no-files-found: error
+          retention-days: 3
+
+  release:
+    name: Sign and publish
+    needs: build
+    if: github.repository == 'zekihan/t3code' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: release
+    permissions:
+      contents: write
+    env:
+      COMMIT: ${{ inputs.commit }}
+      GH_REPO: ${{ github.repository }}
+      SCRIPTS: ${{ github.workspace }}/.github/scripts
+    steps:
+      - name: Checkout main (scripts and toolchain only)
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ github.sha }}
+          sparse-checkout: .github
+          persist-credentials: false
+
+      - name: Validate the input and drop the run if candidate moved
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # shellcheck source=/dev/null
+          source "$SCRIPTS/lib.sh"
+          require_match "commit input" "$RE_SHA" "$COMMIT"
+          "$SCRIPTS/check-ref.sh" heads/candidate "$COMMIT"
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-build
+          path: ${{ runner.temp }}/artifact
+
+      - id: meta
+        name: Validate the artifact and its metadata
+        run: |
+          cd "$RUNNER_TEMP/artifact"
+          [ "$(find . -mindepth 1 | sort | tr '\n' ' ')" = "./app.apk ./metadata.json " ] ||
+            { echo "::error::artifact must contain exactly app.apk and metadata.json"; exit 1; }
+          [ -f app.apk ] && [ ! -L app.apk ] && [ -f metadata.json ] && [ ! -L metadata.json ] ||
+            { echo "::error::artifact entries must be regular files"; exit 1; }
+          cd "$GITHUB_WORKSPACE"
+          "$SCRIPTS/validate-metadata.sh" "$RUNNER_TEMP/artifact/metadata.json" | tee "$RUNNER_TEMP/meta.env" >> "$GITHUB_OUTPUT"
+          grep -qx "commit=$COMMIT" "$RUNNER_TEMP/meta.env" ||
+            { echo "::error::metadata commit differs from the dispatched commit"; exit 1; }
+
+      - name: Recompute the version from the published releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE_TAG: ${{ steps.meta.outputs.base_tag }}
+          META_VERSION_NAME: ${{ steps.meta.outputs.version_name }}
+          META_VERSION_CODE: ${{ steps.meta.outputs.version_code }}
+        run: |
+          gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+            --jq '.[] | {tag_name, prerelease, target_commitish, body: (.body // "")}' \
+            > "$RUNNER_TEMP/releases.ndjson"
+          "$SCRIPTS/compute-version.sh" release "$BASE_TAG" "$RUNNER_TEMP/releases.ndjson" > "$RUNNER_TEMP/version.env"
+          if ! grep -qx "version_name=$META_VERSION_NAME" "$RUNNER_TEMP/version.env" ||
+            ! grep -qx "version_code=$META_VERSION_CODE" "$RUNNER_TEMP/version.env"; then
+            echo "::error::the build's version differs from the one computed now; releases changed during the run"
+            cat "$RUNNER_TEMP/version.env"
+            exit 1
+          fi
+
+      - id: tc
+        name: Load the toolchain set from main
+        env:
+          META_TOOLCHAIN: ${{ steps.meta.outputs.toolchain }}
+        run: |
+          "$SCRIPTS/load-toolchain.sh" .github/toolchain | tee "$RUNNER_TEMP/tc.env" >> "$GITHUB_OUTPUT"
+          grep -qx "toolchain_id=$META_TOOLCHAIN" "$RUNNER_TEMP/tc.env" ||
+            { echo "::error::the build used a different toolchain set than main's current one"; exit 1; }
+
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: ${{ steps.tc.outputs.java_distribution }}
+          java-version: ${{ steps.tc.outputs.java_version }}
+
+      - name: Install the pinned build tools
+        env:
+          ANDROID_CMDLINE_TOOLS_VERSION: ${{ steps.tc.outputs.android_cmdline_tools_version }}
+          ANDROID_CMDLINE_TOOLS_SHA256: ${{ steps.tc.outputs.android_cmdline_tools_sha256 }}
+          ANDROID_BUILD_TOOLS_VERSION: ${{ steps.tc.outputs.android_build_tools_version }}
+          APKSIGNER_JAR_SHA256: ${{ steps.tc.outputs.apksigner_jar_sha256 }}
+          ZIPALIGN_SHA256: ${{ steps.tc.outputs.zipalign_sha256 }}
+          AAPT2_SHA256: ${{ steps.tc.outputs.aapt2_sha256 }}
+        run: |
+          dir="$("$SCRIPTS/install-android-sdk.sh" "$RUNNER_TEMP/android-sdk" | sed -n 's/^build_tools_dir=//p')"
+          [ -n "$dir" ] || { echo "::error::build tools were not installed"; exit 1; }
+          echo "BUILD_TOOLS_DIR=$dir" >> "$GITHUB_ENV"
+
+      - name: Inspect the unsigned APK
+        env:
+          EXPECTED_VERSION_NAME: ${{ steps.meta.outputs.version_name }}
+          EXPECTED_VERSION_CODE: ${{ steps.meta.outputs.version_code }}
+        run: |
+          "$SCRIPTS/verify-apk.sh" "$RUNNER_TEMP/artifact/app.apk"
+
+      - name: Sign
+        env:
+          SIGNING_KEYSTORE_B64: ${{ secrets.ANDROID_SIGNING_KEYSTORE_B64 }}
+          SIGNING_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_SIGNING_KEYSTORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.ANDROID_SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_SIGNING_KEY_PASSWORD }}
+        run: |
+          "$SCRIPTS/sign-apk.sh" "$RUNNER_TEMP/artifact/app.apk" "$RUNNER_TEMP/signed.apk"
+
+      - id: signed
+        name: Verify the signed APK
+        env:
+          EXPECTED_VERSION_NAME: ${{ steps.meta.outputs.version_name }}
+          EXPECTED_VERSION_CODE: ${{ steps.meta.outputs.version_code }}
+          EXPECTED_CERT_SHA256: ${{ vars.ANDROID_SIGNING_CERT_SHA256 }}
+        run: |
+          [ -n "$EXPECTED_CERT_SHA256" ] || { echo "::error::environment variable ANDROID_SIGNING_CERT_SHA256 is not set"; exit 1; }
+          "$SCRIPTS/verify-apk.sh" "$RUNNER_TEMP/signed.apk" | tee -a "$GITHUB_OUTPUT"
+
+      - name: Refuse a versionCode that is not above every published one
+        env:
+          VERSION_CODE: ${{ steps.meta.outputs.version_code }}
+        run: |
+          highest="$(sed -n 's/^highest_code=//p' "$RUNNER_TEMP/version.env")"
+          [ "$VERSION_CODE" -gt "$highest" ] ||
+            { echo "::error::versionCode $VERSION_CODE is not above the highest published $highest"; exit 1; }
+
+      - id: hold
+        name: Hold a changed target SDK as a pre-release
+        env:
+          TARGET_SDK: ${{ steps.signed.outputs.target_sdk }}
+        run: |
+          previous="$("$SCRIPTS/release-info.sh" target-sdk "$RUNNER_TEMP/releases.ndjson")"
+          if [ -n "$previous" ] && [ "$previous" != "$TARGET_SDK" ]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+            note="Held as a pre-release: targetSdkVersion changed from $previous to $TARGET_SDK. Check it on both devices, then promote it."
+            echo "note=$note" >> "$GITHUB_OUTPUT"
+            echo "::warning::$note"
+            echo "### Held as pre-release" >> "$GITHUB_STEP_SUMMARY"
+            echo "$note" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Drop the run if candidate moved, then publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION_NAME: ${{ steps.meta.outputs.version_name }}
+          VERSION_CODE: ${{ steps.meta.outputs.version_code }}
+          BASE_TAG: ${{ steps.meta.outputs.base_tag }}
+          TOOLCHAIN_ID: ${{ steps.meta.outputs.toolchain }}
+          TARGET_SDK: ${{ steps.signed.outputs.target_sdk }}
+          CERT_SHA256: ${{ steps.signed.outputs.cert_sha256 }}
+          PRERELEASE: ${{ steps.hold.outputs.prerelease }}
+          HOLD_NOTE: ${{ steps.hold.outputs.note }}
+        run: |
+          "$SCRIPTS/check-ref.sh" heads/candidate "$COMMIT"
+          "$SCRIPTS/publish-release.sh" "$RUNNER_TEMP/signed.apk"
+          {
+            echo "### Published v$VERSION_NAME"
+            echo "- commit: \`$COMMIT\`, base: \`$BASE_TAG\`, versionCode: $VERSION_CODE, target SDK: $TARGET_SDK, pre-release: $PRERELEASE"
+          } >> "$GITHUB_STEP_SUMMARY"
