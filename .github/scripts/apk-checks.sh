@@ -17,6 +17,7 @@ source "$here/lib.sh"
 
 APPLICATION_ID="${EXPECTED_APPLICATION_ID:-com.noqer.t3mesh}"
 URL_SCHEME="${EXPECTED_URL_SCHEME:-t3mesh}"
+DEV_CLIENT_SCHEME="exp+t3-mesh"
 FORBIDDEN_HOST="${FORBIDDEN_HOST:-app.t3.codes}"
 
 cmd="${1:?subcommand}"
@@ -106,18 +107,23 @@ manifest() {
   if grep -qF -- "$FORBIDDEN_HOST" <<<"$flat"; then
     failures+=("manifest mentions $FORBIDDEN_HOST")
   fi
-  if grep -qP '\tandroid:autoVerify=' <<<"$flat"; then
+  if grep -qP '\tandroid:autoVerify=(?!false(\t|$))' <<<"$flat"; then
     failures+=("an intent filter sets autoVerify")
   fi
 
-  local data_lines schemes=0 line scheme
+  local data_lines schemes=0 line scheme host
   data_lines="$(grep -P '^\d+\t/manifest/application/[^\t]*intent-filter/data\t' <<<"$flat" || true)"
   while IFS= read -r line; do
     [[ -n $line ]] || continue
     scheme="$(grep -oP '\tandroid:scheme=\K[^\t]*' <<<"$line" || true)"
     if [[ -n $scheme ]]; then
+      host="$(grep -oP '\tandroid:host=\K[^\t]*' <<<"$line" || true)"
       if [[ $scheme == "$URL_SCHEME" ]]; then
         schemes=$((schemes + 1))
+      elif [[ $scheme == "$DEV_CLIENT_SCHEME" ]]; then
+        : # expo-dev-client registers exp+<slug>; the slug is the fork's own.
+      elif [[ $scheme == clerk && $host == "$APPLICATION_ID".* ]]; then
+        : # The Clerk SDK's own manifest registers clerk://<applicationId>.<path> callbacks.
       else
         failures+=("intent filter data uses scheme '$scheme', only '$URL_SCHEME' is allowed")
       fi
@@ -136,10 +142,12 @@ certs() {
   grep -q '^Verifies$' "$file" || die "apksigner did not report Verifies"
   grep -qE '^Verified using v[23] scheme .*: true$' "$file" || die "APK is not verified with the v2 or v3 scheme"
   grep -qx 'Number of signers: 1' "$file" || die "APK must have exactly one signer"
-  [[ "$(grep -cE '^Signer #[0-9]+ certificate SHA-256 digest: ' "$file")" == 1 ]] || die "expected exactly one signer digest"
-  local digest
-  digest="$(sed -n 's/^Signer #1 certificate SHA-256 digest: \([0-9a-f]\{64\}\)$/\1/p' "$file")"
-  [[ -n $digest ]] || die "signer digest is malformed"
+  # apksigner labels signers "Signer #1" or, for v3 signing, "V3.0 Signer".
+  local prefix='^(Signer #[0-9]+|V[0-9.]+ Signer):? certificate SHA-256 digest: ' digests digest
+  digests="$(grep -E "$prefix" "$file" | sed -E "s/$prefix//" | sort -u)"
+  [[ -n $digests && $digests != *$'\n'* ]] || die "expected exactly one signer digest"
+  digest="$digests"
+  [[ $digest =~ ^[0-9a-f]{64}$ ]] || die "signer digest is malformed"
   echo "cert_sha256=$digest"
 }
 

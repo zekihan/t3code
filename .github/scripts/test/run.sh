@@ -192,6 +192,13 @@ grep -v 'scheme(0x' fixtures/manifest-good.txt >"$m"
 expect_fail "manifest: no t3mesh scheme" "declares the t3mesh scheme" "$S/apk-checks.sh" manifest "$m"
 : >"$m"
 expect_fail "manifest: empty" "empty" "$S/apk-checks.sh" manifest "$m"
+# A real release build's manifest (A1 stack): sharing filters with autoVerify=false,
+# the dev-client scheme and the Clerk SDK's own callbacks are accepted.
+expect_ok "manifest: real build" "$S/apk-checks.sh" manifest fixtures/manifest-real.txt
+sed 's/"com.noqer.t3mesh.callback" (Raw: "com.noqer.t3mesh.callback")/"evil.example" (Raw: "evil.example")/' fixtures/manifest-real.txt >"$m"
+expect_fail "manifest: clerk scheme on a foreign host" "scheme 'clerk'" "$S/apk-checks.sh" manifest "$m"
+sed '0,/autoVerify(0x010104ee)=false/s//autoVerify(0x010104ee)=true/' fixtures/manifest-real.txt >"$m"
+expect_fail "manifest: real build with autoVerify true" "autoVerify" "$S/apk-checks.sh" manifest "$m"
 expect_out "certs: single signer" "cert_sha256=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" "$S/apk-checks.sh" certs fixtures/certs-good.txt
 sed 's/^Number of signers: 1/Number of signers: 2/' fixtures/certs-good.txt >"$tmp/c.txt"
 expect_fail "certs: two signers" "exactly one signer" "$S/apk-checks.sh" certs "$tmp/c.txt"
@@ -199,6 +206,10 @@ sed 's/scheme (APK Signature Scheme v[23]): true/scheme: false/' fixtures/certs-
 expect_fail "certs: no v2/v3" "v2 or v3" "$S/apk-checks.sh" certs "$tmp/c.txt"
 { cat fixtures/certs-good.txt; echo "Signer #2 certificate SHA-256 digest: ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"; } >"$tmp/c.txt"
 expect_fail "certs: second digest" "exactly one signer digest" "$S/apk-checks.sh" certs "$tmp/c.txt"
+# Real apksigner 37 output for a v2+v3 signed APK labels the signer "V3.0 Signer".
+expect_out "certs: real apksigner output" "cert_sha256=22e73199360ed9f0103bf6ac99bc9aa38c3ebc0776cb27d56c6400044e8548f5" "$S/apk-checks.sh" certs fixtures/certs-real.txt
+{ cat fixtures/certs-real.txt; echo "V3.1 Signer: certificate SHA-256 digest: ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"; } >"$tmp/c.txt"
+expect_fail "certs: real output with a rotated second key" "exactly one signer digest" "$S/apk-checks.sh" certs "$tmp/c.txt"
 
 # ---- verify-apk with stub tools --------------------------------------------
 bt="$tmp/bt"
