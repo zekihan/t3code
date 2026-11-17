@@ -13,5 +13,5 @@ This repository is a standalone copy of `pingdotgg/t3code`, not a GitHub fork.
 | `candidate` | Each rebased stack, before it is released |
 | `mesh` | The stack of the newest published release, on top of an upstream nightly tag |
 
-The plan is [docs/android-fork.md](https://github.com/zekihan/t3-mesh/blob/main/docs/android-fork.md)
-in t3-mesh. Upstream's license applies to its code (MIT).
+The plan is [docs/android-fork.md](docs/android-fork.md).
+Upstream's license applies to its code (MIT).
