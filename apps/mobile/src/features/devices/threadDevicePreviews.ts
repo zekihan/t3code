@@ -1,7 +1,9 @@
+import { streamSurfacesEnabled } from "../mesh/streamSurfaces";
 import type { DeviceServiceState, ThreadId } from "@t3tools/contracts";
 
 /** Host identity is part of the selection because Android serials repeat across hosts. */
 export function threadDevicePreviews(state: DeviceServiceState | null, threadId: ThreadId) {
+  if (!streamSurfacesEnabled) return [];
   return (state?.sessions ?? [])
     .filter((session) => session.threadId === threadId)
     .map((session) => {

@@ -14,6 +14,12 @@ import { useHardwareBack } from "../../lib/backHandler";
 import { isPdfPreviewUri } from "../../lib/pdfPreview";
 import { webViewDecelerationRate } from "../../lib/webViewDecelerationRate";
 import { useContentTopInset } from "../../components/ui/useBarInset";
+import { CertificateLocalUriState } from "../mesh/CertificateSurfaceState";
+import {
+  certificateNavigationAllowed,
+  certificateWebViewProps,
+  useCertificateLocalUri,
+} from "../mesh/useCertificateLocalUri";
 
 export function WorkspaceFileWebPreview(props: { readonly uri: string | null }) {
   const gt = useGT();
@@ -29,11 +35,15 @@ function DocumentWebPreview(props: { readonly uri: string }) {
   const [loadProgress, setLoadProgress] = useState(0);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [linkedPdf, setLinkedPdf] = useState<string | null>(null);
+  // PdfPreview already downloads a PDF through the certificate transport.
+  const local = useCertificateLocalUri(isPdfPreviewUri(props.uri) ? null : props.uri);
 
   useHardwareBack(linkedPdf !== null, () => {
     setLinkedPdf(null);
     return true;
   });
+
+  if (local.state !== "ready") return <CertificateLocalUriState state={local.state} />;
 
   if (isPdfPreviewUri(props.uri)) {
     return (
@@ -59,7 +69,7 @@ function DocumentWebPreview(props: { readonly uri: string }) {
       ) : null}
       <View className="flex-1" style={linkedPdf ? { display: "none" } : undefined}>
         <WebView
-          source={{ uri: props.uri }}
+          source={{ uri: local.uri ?? props.uri }}
           // react-native-webview defaults to "never", which starts the page under the header.
           contentInsetAdjustmentBehavior="automatic"
           decelerationRate={webViewDecelerationRate}
@@ -68,7 +78,9 @@ function DocumentWebPreview(props: { readonly uri: string }) {
           allowsFullscreenVideo
           allowsInlineMediaPlayback
           setSupportMultipleWindows={false}
+          {...certificateWebViewProps(local)}
           onShouldStartLoadWithRequest={(request) => {
+            if (!certificateNavigationAllowed(local, request.url)) return false;
             if (request.isTopFrame !== false && isPdfPreviewUri(request.url)) {
               setLinkedPdf(request.url);
               return false;
