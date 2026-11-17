@@ -19,6 +19,7 @@ import {
   releaseAudioSession,
 } from "../../lib/audioSession";
 import { usePlaybackAudioPlayer } from "../voice-input/usePlaybackAudioPlayer";
+import { useCertificateMediaLease } from "../mesh/useCertificateLocalUri";
 
 type PreviewProps = {
   readonly source: FilePreviewSource;
@@ -247,7 +248,11 @@ function VisibleFilePreview(
     "environmentId" in source ? source.environmentId : null,
     "resource" in source ? source.resource : null,
   );
-  const resolveUri = () => ("uri" in source ? Promise.resolve(source.uri) : refresh());
+  const leaseMedia = useCertificateMediaLease();
+  const resolveUri = () =>
+    ("uri" in source ? Promise.resolve(source.uri) : refresh()).then((uri) =>
+      uri === null ? null : leaseMedia(uri),
+    );
   return <InlineAudio {...props} resolveUri={resolveUri} />;
 }
 

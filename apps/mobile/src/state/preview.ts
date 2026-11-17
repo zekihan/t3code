@@ -16,6 +16,7 @@ import { AsyncResult, Atom } from "effect/reactivity";
 
 import { connectionAtomRuntime } from "../connection/runtime";
 import { appAtomRegistry } from "./atom-registry";
+import { streamSurfacesEnabled } from "../features/mesh/streamSurfaces";
 import { useEnvironmentQuery } from "./query";
 import { environmentSession, usePreparedConnection } from "./session";
 
@@ -129,14 +130,16 @@ export function useThreadServerBrowserTabs(input: {
   readonly enabled: boolean;
 }) {
   const tabs = useAtomValue(
-    input.enabled
+    input.enabled && streamSurfacesEnabled
       ? threadPreviewTabsAtom(
           scopedThreadKey({ environmentId: input.environmentId, threadId: input.threadId }),
         )
       : emptyTabsAtom,
   );
   const sessions = tabs.sessions.filter((session) => session.runtime === "server");
-  return { tabs: sessions, loaded: tabs.listed };
+  // With stream surfaces off nothing will ever list tabs; report loaded so the browser route closes
+  // instead of spinning forever.
+  return { tabs: sessions, loaded: tabs.listed || (input.enabled && !streamSurfacesEnabled) };
 }
 
 // The earliest time the next access request may go out.

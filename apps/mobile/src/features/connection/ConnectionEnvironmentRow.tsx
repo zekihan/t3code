@@ -1,4 +1,8 @@
 import * as Dialog from "../../components/ui/Dialog";
+import { ClientCertificateField } from "../mesh/ClientCertificateField";
+import { ClientCertificateSelectAgain } from "../mesh/ClientCertificateSelectAgain";
+import { useClientCertificateStatus } from "../mesh/useClientCertificateStatus";
+import { clientCertificateSelectionMessage } from "../../lib/clientCertificateExpiry";
 import { ConnectionTraceId } from "./ConnectionTraceId";
 import { SymbolView } from "../../components/ui/AppSymbol";
 import { hasSavedBearerRoute, hostFreezeNotice } from "@t3tools/client-runtime/connection";
@@ -64,6 +68,11 @@ export function ConnectionEnvironmentRow(props: {
     presentation,
   );
   const enabled = props.environment.isEnabled && !unsupported;
+  const certificate = useClientCertificateStatus(
+    props.environment.displayUrl,
+    connectionState.attempt,
+  );
+  const certificateProblem = enabled ? clientCertificateSelectionMessage(certificate.status) : null;
   const statusLabel = connectionStatusLabel(props.environment);
   const statusTraceId = enabled ? props.environment.connectionErrorTraceId : null;
   const hasConnectionFailure = enabled && props.environment.connectionError !== null;
@@ -126,7 +135,10 @@ export function ConnectionEnvironmentRow(props: {
               {props.environment.displayUrl}
             </Text>
           ) : null}
-          {diagnosis ? (
+          {certificateProblem ? (
+            <Text className="text-xs text-danger-foreground">{certificateProblem}</Text>
+          ) : null}
+          {diagnosis && !certificateProblem ? (
             <>
               <Text className="text-xs text-danger-foreground">{diagnosis.headline}</Text>
               {connectionState.attempt > 0 ? (
@@ -135,7 +147,7 @@ export function ConnectionEnvironmentRow(props: {
                 </Text>
               ) : null}
             </>
-          ) : statusLabel ? (
+          ) : statusLabel && !certificateProblem ? (
             <Text
               className={cn(
                 "text-xs",
@@ -196,6 +208,13 @@ export function ConnectionEnvironmentRow(props: {
         </Pressable>
       </View>
 
+      {certificateProblem ? (
+        <ClientCertificateSelectAgain
+          url={props.environment.displayUrl}
+          onSelected={() => props.onReconnect(props.environment.environmentId)}
+        />
+      ) : null}
+
       {props.expanded ? (
         <Animated.View
           entering={FadeIn.duration(200)}
@@ -232,6 +251,7 @@ export function ConnectionEnvironmentRow(props: {
                 value={url}
                 onChangeText={setUrl}
               />
+              <ClientCertificateField host={url} />
             </>
           )}
 

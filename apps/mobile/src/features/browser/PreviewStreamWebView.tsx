@@ -29,6 +29,8 @@ import { downloadAndShareAttachment } from "../../lib/attachmentDownload";
 import { beginForegroundHandoff } from "../../lib/foreground-handoff";
 import { usePreviewStreamAccess } from "../../state/preview";
 import { previewPromptText } from "./previewPromptText";
+import { StreamSurfaceUnavailable } from "../mesh/CertificateSurfaceState";
+import { streamSurfacesEnabled } from "../mesh/streamSurfaces";
 
 import {
   previewStreamDocument,
@@ -111,13 +113,18 @@ function offerDownload(download: PreviewStreamDownload) {
 
 const MAX_REFUSALS = 3;
 
-export function PreviewStreamWebView(
-  props: Omit<PreviewStreamConfiguration, "access"> &
-    Omit<NativeStreamBridge, "onUnauthorized" | "onRefused"> & {
-      readonly environmentId: EnvironmentId;
-      readonly paused?: boolean;
-    },
-) {
+type PreviewStreamWebViewProps = Omit<PreviewStreamConfiguration, "access"> &
+  Omit<NativeStreamBridge, "onUnauthorized" | "onRefused"> & {
+    readonly environmentId: EnvironmentId;
+    readonly paused?: boolean;
+  };
+
+export function PreviewStreamWebView(props: PreviewStreamWebViewProps) {
+  if (!streamSurfacesEnabled) return <StreamSurfaceUnavailable compact={props.compact} />;
+  return <EnabledPreviewStreamWebView {...props} />;
+}
+
+function EnabledPreviewStreamWebView(props: PreviewStreamWebViewProps) {
   const { access, error, refresh, retryAfter } = usePreviewStreamAccess(props.environmentId);
   if (access && !props.paused) {
     return (

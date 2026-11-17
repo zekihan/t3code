@@ -5,6 +5,7 @@ import { beforeEach, vi } from "vite-plus/test";
 
 const mocks = vi.hoisted(() => ({
   canOperate: true,
+  certificateTransfer: vi.fn(),
   documentUri: "file:///documents",
   createAssetUrl: vi.fn(),
   createUploadUrl: Symbol("create-upload-url"),
@@ -56,6 +57,10 @@ vi.mock("../state/session", () => ({
 vi.mock("./uuid", () => ({
   uuidv4: () => "uuid",
   randomHex: () => "0000",
+}));
+
+vi.mock("./clientCertificates", () => ({
+  transferWithClientCertificate: mocks.certificateTransfer,
 }));
 
 vi.mock("expo-file-system", () => ({
@@ -172,6 +177,7 @@ function removeCallsFor(attachmentId: string): number {
 describe("prepareTurnAttachments", () => {
   beforeEach(() => {
     mocks.canOperate = true;
+    mocks.certificateTransfer.mockReset().mockResolvedValue(null);
     mocks.documentUri = "file:///documents";
     mocks.createAssetUrl.mockReset();
     mocks.createAssetUrl.mockImplementation((target: unknown) => target);
@@ -199,6 +205,36 @@ describe("prepareTurnAttachments", () => {
     );
     mocks.upload.mockResolvedValue({ status: 204, body: "", headers: {} });
   });
+
+  it.effect("uploads protected files through the certificate transport", () =>
+    Effect.gen(function* () {
+      mocks.certificateTransfer.mockResolvedValue({ status: 204 });
+      yield* prepare({ environmentId, attachments: [file] });
+      expect(mocks.certificateTransfer).toHaveBeenCalledWith(
+        expect.objectContaining({ upload: true, contentType: file.mimeType }),
+      );
+      expect(mocks.upload).not.toHaveBeenCalled();
+    }),
+  );
+
+  it.effect("sends the wire mime type through the certificate transport", () =>
+    Effect.gen(function* () {
+      mocks.certificateTransfer.mockResolvedValue({ status: 204 });
+      yield* prepare({ environmentId, attachments: [documentPickedImage] });
+      expect(mocks.certificateTransfer).toHaveBeenCalledWith(
+        expect.objectContaining({ upload: true, contentType: "image/png" }),
+      );
+      expect(mocks.upload).not.toHaveBeenCalled();
+    }),
+  );
+
+  it.effect("does not upload anonymously after a certificate failure", () =>
+    Effect.gen(function* () {
+      mocks.certificateTransfer.mockRejectedValue(new Error("Certificate unavailable"));
+      yield* Effect.flip(prepare({ environmentId, attachments: [file] }));
+      expect(mocks.upload).not.toHaveBeenCalled();
+    }),
+  );
 
   it.effect("does not mint or transfer attachments without task operation access", () =>
     Effect.gen(function* () {

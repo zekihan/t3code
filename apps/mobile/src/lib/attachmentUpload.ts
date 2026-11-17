@@ -1,3 +1,4 @@
+import { transferWithClientCertificate } from "./clientCertificates";
 import { resolveAssetUrl } from "@t3tools/client-runtime/state/assets";
 import {
   isAssetAttachmentNotFoundFailure,
@@ -230,21 +231,31 @@ async function uploadFileBytes(
         encoding: "base64",
       });
     }
-    const result = await file.upload(url, {
-      httpMethod: "POST",
-      uploadType: UploadType.BINARY_CONTENT,
-      headers: { "Content-Type": composerAttachmentWireMimeType(attachment) },
-      signal,
-      ...(onProgress
-        ? {
-            // Native events carry Int64 counts, which expo-modules-jsi delivers as BigInt despite the `number` type.
-            onProgress: ({ bytesSent, totalBytes }) => {
-              const total = Number(totalBytes);
-              if (total > 0) onProgress(Number(bytesSent) / total);
-            },
-          }
-        : {}),
-    });
+    const contentType = composerAttachmentWireMimeType(attachment);
+    const result =
+      (await transferWithClientCertificate({
+        url,
+        fileUri: file.uri,
+        upload: true,
+        contentType,
+        signal,
+        onProgress,
+      })) ??
+      (await file.upload(url, {
+        httpMethod: "POST",
+        uploadType: UploadType.BINARY_CONTENT,
+        headers: { "Content-Type": contentType },
+        signal,
+        ...(onProgress
+          ? {
+              // Native events carry Int64 counts, which expo-modules-jsi delivers as BigInt despite the `number` type.
+              onProgress: ({ bytesSent, totalBytes }) => {
+                const total = Number(totalBytes);
+                if (total > 0) onProgress(Number(bytesSent) / total);
+              },
+            }
+          : {}),
+      }));
     if (result.status < 200 || result.status >= 300) {
       throw new Error(`Upload failed for '${attachment.name}' (${result.status}).`);
     }
