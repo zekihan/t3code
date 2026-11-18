@@ -119,6 +119,7 @@ describe("withMesh config", () => {
         withMesh.NATIVE_MODS_PLUGIN,
         { versionName: VERSION_ENV.T3MESH_VERSION_NAME, versionCode: 481401 },
       ],
+      withMesh.STREAM_PLUGIN,
       "expo-asset",
       ["expo-camera", {}],
     ]);

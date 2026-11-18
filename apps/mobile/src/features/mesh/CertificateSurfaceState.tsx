@@ -27,15 +27,15 @@ export function McpAppUnavailable(props: { readonly server: string }) {
   );
 }
 
-/** The device and browser streams run a WebView script against the server. */
+/** Android runs the device and browser streams in their own process; this shows when that is off. */
 export function StreamSurfaceUnavailable(props: { readonly compact?: boolean }) {
   return (
     <EmptyState
       title="Stream unavailable"
       detail={
         props.compact
-          ? "Not available on Android yet."
-          : "Streams are not available on Android yet because a WebView cannot present your client certificate."
+          ? "Not available on this device."
+          : "Streams are not available on this device. They need Android 11 or newer."
       }
       variant="plain"
     />
