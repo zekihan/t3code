@@ -8,6 +8,7 @@ import { Notice } from "../../components/ui/Notice";
 import { AppActivityIndicator } from "../../components/ui/AppActivityIndicator";
 import { ConnectionStatusDot } from "../connection/ConnectionStatusDot";
 import { formatLastSeen, type MeshMachine } from "./meshMachines";
+import { problemDetail, problemTitle } from "./meshProblem";
 import type { MeshState } from "./useMeshMachines";
 
 export interface MeshMachinesViewProps {
@@ -29,31 +30,6 @@ export function meshViewKind(state: MeshState) {
     return state.machines === null || state.loading ? ("loading" as const) : ("empty" as const);
   }
   return "list" as const;
-}
-
-function problemTitle(kind: "no-certificate" | "refused" | "unavailable") {
-  switch (kind) {
-    case "no-certificate":
-      return "Choose your mesh identity";
-    case "refused":
-      return "The hub refused this certificate";
-    case "unavailable":
-      return "Can't reach the hub";
-  }
-}
-
-function problemDetail(problem: NonNullable<MeshState["problem"]>) {
-  switch (problem.kind) {
-    case "no-certificate":
-      return (
-        problem.message ??
-        "hub.mesh.noqer.com lists your machines for the client certificate installed on this phone. Select it to continue."
-      );
-    case "refused":
-      return `hub.mesh.noqer.com answered HTTP ${problem.status}: this certificate is not admitted. Select another one if you have it.`;
-    case "unavailable":
-      return problem.message;
-  }
 }
 
 export function MeshMachinesView(props: MeshMachinesViewProps) {
@@ -121,7 +97,7 @@ export function MeshMachinesView(props: MeshMachinesViewProps) {
                   <Text textRole="body" className="text-foreground">
                     {machine.name}
                     <Text className="text-sm text-foreground-muted">
-                      {machine.online ? "  Online" : "  Offline"}
+                      {machine.online ? "  Tunnel up" : "  Tunnel down"}
                     </Text>
                   </Text>
                   <Text className="text-sm text-foreground-muted">
