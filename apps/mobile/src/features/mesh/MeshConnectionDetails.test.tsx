@@ -3,7 +3,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { beforeEach, expect, it, vi } from "vite-plus/test";
 
-const mocks = vi.hoisted(() => ({ useMeshFleet: vi.fn(), focused: true }));
+const mocks = vi.hoisted(() => ({ useMeshFleet: vi.fn(), useMeshDirect: vi.fn(), focused: true }));
 vi.mock("react-native", () => ({
   View: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
 }));
@@ -17,12 +17,14 @@ vi.mock("../settings/components/SettingsSection", () => ({
   ),
 }));
 vi.mock("./useMeshFleet", () => ({ useMeshFleet: mocks.useMeshFleet }));
+vi.mock("./useMeshDirect", () => ({ useMeshDirect: mocks.useMeshDirect }));
 
 import {
   MeshConnectionDetails,
   MeshConnectionDetailsView,
   machineAtOrigin,
 } from "./MeshConnectionDetails";
+import type { DirectStatus } from "./meshDirect.types";
 import type { MeshFleetMachine } from "./meshFleet";
 import type { MeshFleetState } from "./useMeshFleet";
 
@@ -51,6 +53,20 @@ const state = (overrides: Partial<MeshFleetState> = {}): MeshFleetState => ({
   ...overrides,
 });
 
+const direct = (overrides: Partial<DirectStatus> = {}): DirectStatus => ({
+  path: "viewer",
+  network: null,
+  reason: "away",
+  identity: null,
+  failure: null,
+  unreachable: null,
+  unknownOutcome: null,
+  probing: false,
+  trustFetchedAt: NOW,
+  routeSavedAt: NOW,
+  ...overrides,
+});
+
 function render(node: ReactNode) {
   const container = document.createElement("div");
   const root = createRoot(container);
@@ -62,6 +78,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   mocks.focused = true;
   mocks.useMeshFleet.mockReturnValue({ state: state() });
+  mocks.useMeshDirect.mockReturnValue(null);
 });
 
 it("shows the machine's tunnel and the phone's hub request as two separate paths", () => {
@@ -167,5 +184,177 @@ it("tells the fleet hook when the screen is not focused", () => {
   mocks.focused = false;
   const view = render(<MeshConnectionDetails displayUrl={ORIGIN} />);
   expect(mocks.useMeshFleet).toHaveBeenCalledWith({ focused: false });
+  view.unmount();
+});
+
+it("shows the active path as direct over the LAN", () => {
+  const view = render(
+    <MeshConnectionDetailsView
+      state={state()}
+      origin={ORIGIN}
+      direct={direct({ path: "direct", network: "LAN", reason: null })}
+    />,
+  );
+  const text = view.container.textContent ?? "";
+  expect(text).toContain("Connection path: Direct (LAN)");
+  expect(text).not.toContain("Viewer host");
+  expect(text).toContain("Tunnel up");
+  view.unmount();
+});
+
+it("shows the viewer host and why, when the hub sees the phone away", () => {
+  const view = render(
+    <MeshConnectionDetailsView state={state()} origin={ORIGIN} direct={direct()} />,
+  );
+  const text = view.container.textContent ?? "";
+  expect(text).toContain("Connection path: Viewer host");
+  expect(text).toContain("The hub sees this phone away from home.");
+  view.unmount();
+});
+
+it("says nothing about why when the device is not enrolled", () => {
+  const view = render(
+    <MeshConnectionDetailsView
+      state={state()}
+      origin={ORIGIN}
+      direct={direct({ reason: "not-enrolled" })}
+    />,
+  );
+  const text = view.container.textContent ?? "";
+  expect(text).toContain("Connection path: Viewer host");
+  expect(text).not.toContain("enrolled");
+  view.unmount();
+});
+
+it("shows a certificate failure even though the viewer host carries the traffic", () => {
+  const view = render(
+    <MeshConnectionDetailsView
+      state={state()}
+      origin={ORIGIN}
+      direct={direct({
+        reason: "probe-failed",
+        failure: {
+          kind: "certificate",
+          detail: "The agent's certificate was revoked.",
+          at: NOW,
+        },
+      })}
+    />,
+  );
+  const text = view.container.textContent ?? "";
+  expect(text).toContain("Connection path: Viewer host");
+  expect(text).toContain(
+    "The machine's certificate was refused: The agent's certificate was revoked.",
+  );
+  view.unmount();
+});
+
+it("shows an authorization failure and a plain unreachable machine differently", () => {
+  const refused = render(
+    <MeshConnectionDetailsView
+      state={state()}
+      origin={ORIGIN}
+      direct={direct({
+        reason: "probe-failed",
+        failure: {
+          kind: "authorization",
+          detail: "The machine did not accept this device's identity.",
+          at: NOW,
+        },
+      })}
+    />,
+  );
+  expect(refused.container.textContent).toContain(
+    "The machine did not accept this device: The machine did not accept this device's identity.",
+  );
+  refused.unmount();
+
+  const silent = render(
+    <MeshConnectionDetailsView
+      state={state()}
+      origin={ORIGIN}
+      direct={direct({
+        reason: "probe-failed",
+        unreachable: {
+          kind: "timeout",
+          detail: "TCP and TLS did not finish within 2000 ms.",
+          at: NOW,
+        },
+      })}
+    />,
+  );
+  const text = silent.container.textContent ?? "";
+  expect(text).toContain("The machine did not answer directly; trying again shortly.");
+  expect(text).toContain("TCP and TLS did not finish within 2000 ms.");
+  expect(text).not.toContain("refused");
+  silent.unmount();
+});
+
+it("tells the person a request was not repeated when its outcome is unknown", () => {
+  const view = render(
+    <MeshConnectionDetailsView
+      state={state()}
+      origin={ORIGIN}
+      direct={direct({ unknownOutcome: { at: NOW, method: "POST" } })}
+    />,
+  );
+  expect(view.container.textContent).toContain(
+    "A POST request failed on the direct connection after it was sent. It may have taken effect and was not repeated through the viewer host.",
+  );
+  view.unmount();
+});
+
+it("notes when the direct path uses the previous device identity", () => {
+  const view = render(
+    <MeshConnectionDetailsView
+      state={state()}
+      origin={ORIGIN}
+      direct={direct({ path: "direct", network: "LAN", reason: null, identity: "previous" })}
+    />,
+  );
+  expect(view.container.textContent).toContain(
+    "Using the previous device identity: this machine has not yet heard of the renewed one.",
+  );
+  view.unmount();
+});
+
+it("shows the path without the hub, from a cold start", () => {
+  const view = render(
+    <MeshConnectionDetailsView
+      state={state({ fleet: null, request: null, loading: true })}
+      origin={ORIGIN}
+      direct={direct({ path: "direct", network: "LAN", reason: null })}
+    />,
+  );
+  const text = view.container.textContent ?? "";
+  expect(text).toContain("Connection path: Direct (LAN)");
+  expect(text).not.toContain("Tunnel");
+  expect(text).not.toContain("Connection details unavailable");
+  view.unmount();
+});
+
+it("shows the path and the hub problem together when the hub cannot be reached", () => {
+  const view = render(
+    <MeshConnectionDetailsView
+      state={state({
+        fleet: null,
+        request: null,
+        problem: { kind: "unavailable", message: "no route" },
+      })}
+      origin={ORIGIN}
+      direct={direct({ path: "direct", network: "LAN", reason: null })}
+    />,
+  );
+  const text = view.container.textContent ?? "";
+  expect(text).toContain("Connection path: Direct (LAN)");
+  expect(text).toContain("Connection details unavailable. no route");
+  view.unmount();
+});
+
+it("reads the path of the environment's own origin", () => {
+  mocks.useMeshDirect.mockReturnValue(direct({ path: "direct", network: "LAN", reason: null }));
+  const view = render(<MeshConnectionDetails displayUrl={`${ORIGIN}/`} />);
+  expect(mocks.useMeshDirect).toHaveBeenCalledWith(ORIGIN);
+  expect(view.container.textContent).toContain("Connection path: Direct (LAN)");
   view.unmount();
 });
