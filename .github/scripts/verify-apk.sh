@@ -29,7 +29,7 @@ get() { sed -n "s/^$1=//p" <<<"$badging"; }
 [[ "$(get application_id)" == "${EXPECTED_APPLICATION_ID:-com.noqer.t3mesh}" ]] || die "applicationId is not ${EXPECTED_APPLICATION_ID:-com.noqer.t3mesh}"
 [[ "$(get version_name)" == "${EXPECTED_VERSION_NAME:?}" ]] || die "APK versionName differs from the metadata"
 [[ "$(get version_code)" == "${EXPECTED_VERSION_CODE:?}" ]] || die "APK versionCode differs from the metadata"
-"$here/apk-checks.sh" manifest "$work/manifest.txt" >/dev/null
+TARGET_SDK="$(get target_sdk)" "$here/apk-checks.sh" manifest "$work/manifest.txt" >/dev/null
 echo "$badging"
 
 if [[ -n ${EXPECTED_CERT_SHA256:-} ]]; then

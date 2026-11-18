@@ -195,6 +195,12 @@ expect_fail "manifest: empty" "empty" "$S/apk-checks.sh" manifest "$m"
 # A real release build's manifest (A1 stack): sharing filters with autoVerify=false,
 # the dev-client scheme and the Clerk SDK's own callbacks are accepted.
 expect_ok "manifest: real build" "$S/apk-checks.sh" manifest fixtures/manifest-real.txt
+# Android 17 local network access: the permission is declared exactly when targeting 37+.
+awk '{print} /android.permission.INTERNET/ && !done {sub(/INTERNET/,"ACCESS_LOCAL_NETWORK"); sub(/line=[0-9]+/,"line=999"); print; done=1}' fixtures/manifest-real.txt >"$tmp/lan.txt"
+expect_ok "manifest: target 36 without ACCESS_LOCAL_NETWORK" env TARGET_SDK=36 "$S/apk-checks.sh" manifest fixtures/manifest-real.txt
+expect_fail "manifest: target 37 without ACCESS_LOCAL_NETWORK" "needs uses-permission ACCESS_LOCAL_NETWORK" env TARGET_SDK=37 "$S/apk-checks.sh" manifest fixtures/manifest-real.txt
+expect_ok "manifest: target 37 with ACCESS_LOCAL_NETWORK" env TARGET_SDK=37 "$S/apk-checks.sh" manifest "$tmp/lan.txt"
+expect_fail "manifest: target 36 with ACCESS_LOCAL_NETWORK" "withdraws LAN access" env TARGET_SDK=36 "$S/apk-checks.sh" manifest "$tmp/lan.txt"
 sed 's/"com.noqer.t3mesh.callback" (Raw: "com.noqer.t3mesh.callback")/"evil.example" (Raw: "evil.example")/' fixtures/manifest-real.txt >"$m"
 expect_fail "manifest: clerk scheme on a foreign host" "scheme 'clerk'" "$S/apk-checks.sh" manifest "$m"
 sed '0,/autoVerify(0x010104ee)=false/s//autoVerify(0x010104ee)=true/' fixtures/manifest-real.txt >"$m"

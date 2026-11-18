@@ -111,6 +111,20 @@ manifest() {
     failures+=("an intent filter sets autoVerify")
   fi
 
+  # Android 17 gates LAN access behind ACCESS_LOCAL_NETWORK for apps targeting 37+, and
+  # declaring it below 37 withdraws the implicit grant: either mismatch breaks LAN access.
+  if [[ -n ${TARGET_SDK:-} ]]; then
+    local local_network=false
+    if grep -qP '^\d+\t/manifest/uses-permission\t.*\tandroid:name=android\.permission\.ACCESS_LOCAL_NETWORK(\t|$)' <<<"$flat"; then
+      local_network=true
+    fi
+    if ((TARGET_SDK >= 37)) && ! $local_network; then
+      failures+=("targetSdkVersion $TARGET_SDK needs uses-permission ACCESS_LOCAL_NETWORK")
+    elif ((TARGET_SDK < 37)) && $local_network; then
+      failures+=("ACCESS_LOCAL_NETWORK is declared below targetSdkVersion 37, which withdraws LAN access on Android 17")
+    fi
+  fi
+
   local data_lines schemes=0 line scheme host
   data_lines="$(grep -P '^\d+\t/manifest/application/[^\t]*intent-filter/data\t' <<<"$flat" || true)"
   while IFS= read -r line; do
