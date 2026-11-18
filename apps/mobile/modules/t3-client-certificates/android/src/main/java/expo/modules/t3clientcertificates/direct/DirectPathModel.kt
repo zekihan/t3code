@@ -1,5 +1,7 @@
 package expo.modules.t3clientcertificates.direct
 
+import expo.modules.t3clientcertificates.localnet.LocalNetworkState
+
 /** Which of the phone's two enrolled identities a direct connection presents. */
 internal enum class IdentityKind(val wire: String) {
   CURRENT("current"),
@@ -24,6 +26,9 @@ internal enum class ViewerReason(val code: String) {
   NO_ROUTE("no-route"),
   ROUTE_EXPIRED("route-expired"),
   AWAY("away"),
+
+  /** Android 17 drops the connection to a LAN address while the local network permission is missing. */
+  LOCAL_NETWORK_DENIED("local-network-denied"),
   PROBE_FAILED("probe-failed"),
 
   /** Not a cached decision: the answer for a request that did not wait for one to be made. */
@@ -79,6 +84,8 @@ internal sealed interface ProbeRecord {
  * and routes and the probe results go in; a decision comes out.
  *
  * - Away from home, as the hub's own request saw it, no direct attempt is made.
+ * - Without the local network permission (Android 17, target 37) no direct attempt is made either:
+ *   the platform would drop the connection, and a probe that times out is no verdict on the machine.
  * - Otherwise (home, or no hub answer since the network changed) one probe runs per network change
  *   and per route, and a failed one keeps the machine on the viewer host for 60 s.
  * - A hub that does not answer (unreachable, or answering errors) changes none of this except that
@@ -97,6 +104,9 @@ internal class DirectPathModel(private val clock: () -> Long = System::currentTi
     private set
 
   var gate = HubGate.UNKNOWN
+    private set
+
+  var localNetwork = LocalNetworkState.NOT_REQUIRED
     private set
 
   /** Counts network changes: a probe result belongs to the network it was made on. */
@@ -137,6 +147,7 @@ internal class DirectPathModel(private val clock: () -> Long = System::currentTi
       route == null -> ViewerReason.NO_ROUTE
       route.expired(now) -> ViewerReason.ROUTE_EXPIRED
       gate == HubGate.AWAY -> ViewerReason.AWAY
+      localNetwork == LocalNetworkState.DENIED -> ViewerReason.LOCAL_NETWORK_DENIED
       else -> null
     }
   }
@@ -198,6 +209,13 @@ internal class DirectPathModel(private val clock: () -> Long = System::currentTi
    */
   fun hubFailed() {
     if (gate == HubGate.AWAY) gate = HubGate.UNKNOWN
+  }
+
+  /** The local network permission was granted or taken away: what a probe saw no longer applies. */
+  fun localNetworkChanged(next: LocalNetworkState) {
+    if (next == localNetwork) return
+    localNetwork = next
+    probes.clear()
   }
 
   fun trustRefreshed(next: DirectTrust) {

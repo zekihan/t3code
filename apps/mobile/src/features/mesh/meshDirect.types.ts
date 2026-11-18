@@ -15,7 +15,8 @@ export interface DirectFailure {
 /**
  * Why an environment is on the viewer host: the device is not enrolled, there is no trust or
  * route, one of them is more than a week old, the hub says the phone is away, a direct attempt
- * failed (kept for 60 s), or the decision has not been made yet.
+ * failed (kept for 60 s), Android 17 withholds local network access, or the decision has not been
+ * made yet.
  */
 export type DirectViewerReason =
   | "not-enrolled"
@@ -24,6 +25,7 @@ export type DirectViewerReason =
   | "no-route"
   | "route-expired"
   | "away"
+  | "local-network-denied"
   | "probe-failed"
   | "pending";
 

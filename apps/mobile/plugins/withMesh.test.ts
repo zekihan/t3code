@@ -120,9 +120,18 @@ describe("withMesh config", () => {
         { versionName: VERSION_ENV.T3MESH_VERSION_NAME, versionCode: 481401 },
       ],
       withMesh.STREAM_PLUGIN,
+      [withMesh.LOCAL_NETWORK_PLUGIN, { targetSdk: null }],
       "expo-asset",
       ["expo-camera", {}],
     ]);
+  });
+
+  it("passes the test-only target SDK to the local network plugin", () => {
+    const config = withMesh(upstreamConfig(), { ...VERSION_ENV, T3MESH_TARGET_SDK: "37" }) as any;
+    expect(config.plugins).toContainEqual([withMesh.LOCAL_NETWORK_PLUGIN, { targetSdk: 37 }]);
+    expect(() =>
+      withMesh(upstreamConfig(), { ...VERSION_ENV, T3MESH_TARGET_SDK: "37", CI: "true" }),
+    ).toThrow("CI");
   });
 
   it("keeps the input config untouched", () => {

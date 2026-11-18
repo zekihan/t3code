@@ -25,6 +25,12 @@ import { SettingsScreen } from "../settings/components/SettingsScreen";
 import { AppText as Text, AppTextInput, type AppTextInputProps } from "../../components/ui/AppText";
 import { FrostedCutout } from "../../components/ui/FrostedCutout";
 import { ClientCertificateField } from "../mesh/ClientCertificateField";
+import {
+  explainConnectionError,
+  hostOfAddress,
+  isLocalNetworkHost,
+} from "../mesh/localNetworkLogic";
+import { useLocalNetworkAccess } from "../mesh/useLocalNetworkAccess";
 import { buildPairingUrl, extractPairingUrlFromQrPayload, parsePairingUrl } from "./pairing";
 import { useRemoteConnections } from "../../state/use-remote-environment-registry";
 import { SymbolView } from "../../components/ui/AppSymbol";
@@ -79,6 +85,7 @@ function PairingForm({
     useRemoteConnections();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const localNetwork = useLocalNetworkAccess();
   const [initialPairing] = useState(() => parsePairingUrl(routePairingUrl || connectionPairingUrl));
   const [hostInput, setHostInput] = useState(linked?.host ?? initialPairing.host);
   const [codeInput, setCodeInput] = useState(initialPairing.code);
@@ -172,13 +179,19 @@ function PairingForm({
 
   const handleSubmit = async () => {
     const pairingUrl = buildPairingUrl(hostInput, codeInput);
+    // Android 17 drops traffic to a local network address without the permission: ask before trying.
+    const lanHost = hostOfAddress(hostInput);
+    const lanState =
+      lanHost !== null && isLocalNetworkHost(lanHost)
+        ? await localNetwork.ask("add-environment")
+        : null;
     setOwnAttempt(true);
     setSubmitError(null);
     setIsSubmitting(true);
     onChangeConnectionPairingUrl(pairingUrl);
     const outcome = await onConnectPress(pairingUrl, routeFor);
     setIsSubmitting(false);
-    setSubmitError(outcome.error);
+    setSubmitError(explainConnectionError(outcome.error, lanHost, lanState ?? "not-required"));
     void Haptics.notificationAsync(
       outcome.ok
         ? Haptics.NotificationFeedbackType.Success

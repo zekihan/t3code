@@ -4,6 +4,8 @@ import android.content.Context
 import android.util.Log
 import expo.modules.t3clientcertificates.enroll.EnrollmentManager
 import expo.modules.t3clientcertificates.enroll.previousExpired
+import expo.modules.t3clientcertificates.localnet.AndroidLocalNetworkGate
+import expo.modules.t3clientcertificates.localnet.LocalNetworkErrorInterceptor
 import expo.modules.t3clientcertificates.stream.StreamEnrolledIdentity
 import java.net.Socket
 import java.security.GeneralSecurityException
@@ -68,6 +70,9 @@ internal class DirectRuntime(
     DirectHub(hubClient().newBuilder().callTimeout(HUB_TIMEOUT_SECONDS, TimeUnit.SECONDS).build())
   }
 
+  /** Whether Android 17 lets this app reach LAN addresses; read by the paths and the screens. */
+  val localNetwork = AndroidLocalNetworkGate(context)
+
   val paths =
     DirectPaths(
       store = PreferencesDirectStore(
@@ -81,6 +86,7 @@ internal class DirectRuntime(
         Executors.newScheduledThreadPool(WORKER_THREADS) { runnable ->
           Thread(runnable, "t3-direct").apply { isDaemon = true }
         },
+      localNetwork = localNetwork::state,
       log = { Log.i(TAG, it) },
       onChange = { changed?.invoke(it.machine) },
       streamsLost = { restartStreams() }
@@ -88,6 +94,7 @@ internal class DirectRuntime(
 
   private val pins = PathPins()
   private val interceptor = DirectRoutingInterceptor(paths, pins)
+  private val localNetworkErrors = LocalNetworkErrorInterceptor(localNetwork)
   private val guard = DirectPathGuard()
   private val selector = DirectProxySelector(paths, pins)
 
@@ -110,6 +117,10 @@ internal class DirectRuntime(
   /** Routes a mesh viewer host's requests, once however often a builder is configured. */
   fun configure(builder: OkHttpClient.Builder): OkHttpClient.Builder {
     builder.proxySelector(selector)
+    // First, so it also sees what the routing interceptor and the network layers fail with.
+    if (builder.interceptors().none { it is LocalNetworkErrorInterceptor }) {
+      builder.addInterceptor(localNetworkErrors)
+    }
     if (builder.interceptors().none { it is DirectRoutingInterceptor }) {
       builder.addInterceptor(interceptor)
     }
