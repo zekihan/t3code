@@ -4,7 +4,8 @@
     "modules": [
       "expo.modules.t3clientcertificates.T3ClientCertificatesModule",
       "expo.modules.t3clientcertificates.stream.T3MeshStreamModule",
-      "expo.modules.t3clientcertificates.enroll.T3MeshEnrollmentModule"
+      "expo.modules.t3clientcertificates.enroll.T3MeshEnrollmentModule",
+      "expo.modules.t3clientcertificates.direct.T3MeshDirectModule"
     ]
   }
 }

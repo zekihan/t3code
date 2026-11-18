@@ -165,11 +165,14 @@ class T3MeshStreamView(context: Context, appContext: AppContext) : ExpoView(cont
     // The app process owns the choice; the stream process only receives it with the request.
     val transport = T3CertificateTransport.install(context)
     val alias = origin?.let { transport.aliasFor(it) }
+    // The direct path (A8), when the machine is home and its agent passed the probe; else null.
+    val direct = origin?.let { transport.direct.streamRouting(id, it) }
     val request =
       OpenRequest(
         environmentUrl = certificateUrl,
         alias = alias,
-        enrolled = alias?.let { transport.enrolledStreamIdentity(it) },
+        enrolled = direct?.identity ?: alias?.let { transport.enrolledStreamIdentity(it) },
+        direct = direct?.toStream(),
         documentFile = writeDocument(id, document).path,
         baseUrl = base,
         hostToken = token,
@@ -189,6 +192,7 @@ class T3MeshStreamView(context: Context, appContext: AppContext) : ExpoView(cont
   }
 
   private fun endSession() {
+    session?.let { T3CertificateTransport.install(context).direct.streamClosed(it) }
     session = null
     opened = null
     surface.clearChildSurfacePackage()

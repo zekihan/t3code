@@ -3,6 +3,13 @@ import { View } from "react-native";
 
 import { AppText as Text } from "../../components/ui/AppText";
 import { SettingsSection } from "../settings/components/SettingsSection";
+import type { DirectStatus } from "./meshDirect.types";
+import {
+  describeDirectFailure,
+  describePathLabel,
+  describePathReason,
+  describeUnknownOutcome,
+} from "./meshDirectLogic";
 import {
   describeHubRequest,
   formatPath,
@@ -11,6 +18,7 @@ import {
 } from "./meshFleet";
 import { meshViewerOriginOf } from "./meshViewerUrl";
 import { problemDetail } from "./meshProblem";
+import { useMeshDirect } from "./useMeshDirect";
 import { useMeshFleet, type MeshFleetState } from "./useMeshFleet";
 
 /** The machine at `origin` in the latest fleet answer, or null. */
@@ -19,26 +27,66 @@ export function machineAtOrigin(state: MeshFleetState, origin: string): MeshFlee
 }
 
 /**
- * The two independent paths of a mesh environment: the machine's tunnel to the hub, and this
- * phone's request to the hub. Renders nothing until the hub lists the machine.
+ * The path this phone's requests to the environment take: direct over the LAN, or the viewer host.
+ * A certificate or authorization failure on the direct path shows here even while the viewer host
+ * carries the traffic.
+ */
+function EnvironmentPath(props: { readonly direct: DirectStatus }) {
+  const { direct } = props;
+  const reason = describePathReason(direct);
+  const unreachable = direct.path === "viewer" ? direct.unreachable : null;
+  return (
+    <View className="gap-0.5">
+      <Text className="text-base text-foreground">
+        {`Connection path: ${describePathLabel(direct)}`}
+      </Text>
+      {reason ? <Text className="text-sm text-foreground-muted">{reason}</Text> : null}
+      {unreachable ? (
+        <Text className="text-xs text-foreground-muted">{unreachable.detail}</Text>
+      ) : null}
+      {direct.failure ? (
+        <Text className="text-sm text-danger-foreground">
+          {describeDirectFailure(direct.failure)}
+        </Text>
+      ) : null}
+      {direct.unknownOutcome ? (
+        <Text className="text-sm text-danger-foreground">
+          {describeUnknownOutcome(direct.unknownOutcome)}
+        </Text>
+      ) : null}
+      <Text className="text-xs text-foreground-muted">
+        The route this phone's requests to the machine take; the machine's tunnel is separate.
+      </Text>
+    </View>
+  );
+}
+
+/**
+ * The paths of a mesh environment: the one this phone's requests take (direct or viewer host),
+ * the machine's tunnel to the hub, and this phone's request to the hub. The tunnel and hub
+ * request show once the hub lists the machine; the path shows whenever the phone knows it.
  */
 export function MeshConnectionDetailsView(props: {
   readonly state: MeshFleetState;
   readonly origin: string;
+  readonly direct?: DirectStatus | null;
 }) {
-  const { state } = props;
+  const { state, direct = null } = props;
   const machine = machineAtOrigin(state, props.origin);
   if (machine === null) {
     // A missing certificate is Settings > Mesh's to explain; a refusal or outage is worth a line.
-    if (state.fleet !== null || state.problem === null || state.problem.kind === "no-certificate") {
-      return null;
-    }
+    const unavailable =
+      state.fleet === null && state.problem !== null && state.problem.kind !== "no-certificate";
+    if (!unavailable && direct === null) return null;
     return (
       <SettingsSection title="Mesh connection">
-        <View className="p-4">
-          <Text className="text-sm text-foreground-muted">
-            {`Connection details unavailable. ${problemDetail(state.problem)}`}
-          </Text>
+        <View className="gap-3 p-4">
+          {direct ? <EnvironmentPath direct={direct} /> : null}
+          {unavailable && state.problem ? (
+            <Text className="text-sm text-foreground-muted">
+              {`Connection details unavailable. ${problemDetail(state.problem)}`}
+            </Text>
+          ) : null}
         </View>
       </SettingsSection>
     );
@@ -48,6 +96,7 @@ export function MeshConnectionDetailsView(props: {
   return (
     <SettingsSection title="Mesh connection">
       <View className="gap-3 p-4">
+        {direct ? <EnvironmentPath direct={direct} /> : null}
         <View className="gap-0.5">
           <Text className="text-base text-foreground">
             {machine.online ? "Tunnel up" : "Tunnel down"}
@@ -78,7 +127,8 @@ export function MeshConnectionDetailsView(props: {
 
 function MeshConnectionDetailsLoader(props: { readonly origin: string }) {
   const { state } = useMeshFleet({ focused: useIsFocused() });
-  return <MeshConnectionDetailsView state={state} origin={props.origin} />;
+  const direct = useMeshDirect(props.origin);
+  return <MeshConnectionDetailsView state={state} origin={props.origin} direct={direct} />;
 }
 
 /**

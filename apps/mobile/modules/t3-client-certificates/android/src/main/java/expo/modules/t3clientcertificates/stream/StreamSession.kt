@@ -12,11 +12,13 @@ import android.util.Log
 import android.view.ContextThemeWrapper
 import android.view.Display
 import android.view.SurfaceControlViewHost
+import android.net.http.SslError
 import android.webkit.ClientCertRequest
 import android.webkit.ConsoleMessage
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
 import android.webkit.RenderProcessGoneDetail
+import android.webkit.SslErrorHandler
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
@@ -54,11 +56,20 @@ internal class StreamSession(
   private lateinit var document: String
   private val certificates =
     StreamClientCertificates(service, request.environmentUrl, request.alias, request.enrolled)
+  private val direct = request.direct
+  private val directPolicy = direct?.let(::DirectStreamPolicy)
+  private val mainExecutor = service.mainExecutor
 
   private val client =
     object : WebViewClient() {
       override fun onReceivedClientCertRequest(view: WebView, request: ClientCertRequest) =
         certificates.respond(request)
+
+      // The WebView asks only when its own validation failed: for the direct path, the agent's
+      // certificate is not in the system store. Only that machine's agent, on its own host, passes.
+      override fun onReceivedSslError(view: WebView, sslHandler: SslErrorHandler, error: SslError) {
+        if (directPolicy != null) directPolicy.answer(sslHandler, error) else sslHandler.cancel()
+      }
 
       override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest) =
         !navigationAllowed(request.url.toString(), baseUrl)
@@ -141,6 +152,18 @@ internal class StreamSession(
     )
     val origin = request.alias?.takeIf { it.isNotEmpty() }?.let { request.environmentUrl }
       ?.let(::certificateOrigin)
+    if (direct == null) {
+      begin(origin)
+    } else {
+      // Decisions made for an earlier path (certificates the person or the app accepted) go first.
+      webView.clearSslPreferences()
+      val ready = Runnable { handler.post { begin(origin) } }
+      StreamProxy.add(id, direct.host, direct.proxyPort, mainExecutor, ready)
+    }
+  }
+
+  private fun begin(origin: String?) {
+    if (closed) return
     if (origin == null) {
       startPage()
     } else {
@@ -179,6 +202,7 @@ internal class StreamSession(
     if (closed) return
     closed = true
     handler.removeCallbacksAndMessages(null)
+    if (direct != null) StreamProxy.remove(id, mainExecutor)
     certificates.shutdown()
     host.release()
     webView.stopLoading()

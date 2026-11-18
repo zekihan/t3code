@@ -28,6 +28,11 @@ internal object StreamProtocol {
   const val ALIAS = "alias"
   const val KEYSTORE_ALIAS = "keystoreAlias"
   const val CHAIN_PEM = "chainPem"
+  const val DIRECT_PORT = "directPort"
+  const val DIRECT_HOST = "directHost"
+  const val DIRECT_CA = "directCa"
+  const val DIRECT_REVOKED = "directRevoked"
+  const val DIRECT_IDENTITY = "directIdentity"
   const val DOCUMENT_FILE = "documentFile"
   const val BASE_URL = "baseUrl"
   const val HOST_TOKEN = "hostToken"
@@ -66,6 +71,8 @@ internal class OpenRequest(
   val alias: String?,
   /** The Keystore alias and certificate chain when [alias] is the enrolled identity. */
   val enrolled: StreamEnrolledIdentity?,
+  /** Set when the stream takes the direct path (A8): through the app's checking proxy. */
+  val direct: DirectStream? = null,
   val documentFile: String,
   val baseUrl: String,
   val hostToken: IBinder,
@@ -79,6 +86,7 @@ internal class OpenRequest(
       putString(StreamProtocol.ALIAS, alias)
       putString(StreamProtocol.KEYSTORE_ALIAS, enrolled?.keystoreAlias)
       putString(StreamProtocol.CHAIN_PEM, enrolled?.chainPem)
+      direct?.putInto(this)
       putString(StreamProtocol.DOCUMENT_FILE, documentFile)
       putString(StreamProtocol.BASE_URL, baseUrl)
       putBinder(StreamProtocol.HOST_TOKEN, hostToken)
@@ -105,6 +113,7 @@ internal class OpenRequest(
           environmentUrl = data.getString(StreamProtocol.ENVIRONMENT_URL),
           alias = data.getString(StreamProtocol.ALIAS),
           enrolled = enrolledFrom(data),
+          direct = DirectStream.from(data),
           documentFile = documentFile,
           baseUrl = baseUrl,
           hostToken = hostToken,
