@@ -3,7 +3,12 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { beforeEach, expect, it, vi } from "vite-plus/test";
 
-const mocks = vi.hoisted(() => ({ useMeshFleet: vi.fn(), useMeshDirect: vi.fn(), focused: true }));
+const mocks = vi.hoisted(() => ({
+  useMeshFleet: vi.fn(),
+  useMeshDirect: vi.fn(),
+  openSettings: vi.fn(),
+  focused: true,
+}));
 vi.mock("react-native", () => ({
   View: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
 }));
@@ -15,6 +20,20 @@ vi.mock("../settings/components/SettingsSection", () => ({
   SettingsSection: ({ title, children }: { title: string; children?: ReactNode }) => (
     <section aria-label={title}>{children}</section>
   ),
+}));
+vi.mock("../../components/ui/Button", () => ({
+  Button: ({ label, onPress }: { label: string; onPress: () => void }) => (
+    <button type="button" onClick={onPress}>
+      {label}
+    </button>
+  ),
+}));
+vi.mock("./useLocalNetworkAccess", () => ({
+  useLocalNetworkAccess: () => ({
+    state: "denied",
+    ask: vi.fn(),
+    openSettings: mocks.openSettings,
+  }),
 }));
 vi.mock("./useMeshFleet", () => ({ useMeshFleet: mocks.useMeshFleet }));
 vi.mock("./useMeshDirect", () => ({ useMeshDirect: mocks.useMeshDirect }));
@@ -356,5 +375,45 @@ it("reads the path of the environment's own origin", () => {
   const view = render(<MeshConnectionDetails displayUrl={`${ORIGIN}/`} />);
   expect(mocks.useMeshDirect).toHaveBeenCalledWith(ORIGIN);
   expect(view.container.textContent).toContain("Connection path: Direct (LAN)");
+  view.unmount();
+});
+
+it("says local network access was denied and offers Settings", () => {
+  const view = render(
+    <MeshConnectionDetailsView
+      state={state()}
+      origin={ORIGIN}
+      direct={direct({ reason: "local-network-denied" })}
+      onOpenSettings={mocks.openSettings}
+    />,
+  );
+  const text = view.container.textContent ?? "";
+  expect(text).toContain("Connection path: Viewer host");
+  expect(text).toContain("Local network access denied. Allow it in Settings.");
+  const button = view.container.querySelector("button");
+  expect(button?.textContent).toBe("Settings");
+  act(() => button?.click());
+  expect(mocks.openSettings).toHaveBeenCalledOnce();
+  view.unmount();
+});
+
+it("offers Settings only for a denied permission", () => {
+  const view = render(
+    <MeshConnectionDetailsView
+      state={state()}
+      origin={ORIGIN}
+      direct={direct({ reason: "away" })}
+      onOpenSettings={mocks.openSettings}
+    />,
+  );
+  expect(view.container.querySelector("button")).toBeNull();
+  view.unmount();
+});
+
+it("wires the Settings button of a mesh environment to the app's settings", () => {
+  mocks.useMeshDirect.mockReturnValue(direct({ reason: "local-network-denied" }));
+  const view = render(<MeshConnectionDetails displayUrl={ORIGIN} />);
+  act(() => view.container.querySelector("button")?.click());
+  expect(mocks.openSettings).toHaveBeenCalledOnce();
   view.unmount();
 });

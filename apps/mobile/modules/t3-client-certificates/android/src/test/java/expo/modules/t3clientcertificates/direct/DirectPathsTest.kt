@@ -1,6 +1,7 @@
 package expo.modules.t3clientcertificates.direct
 
 import expo.modules.t3clientcertificates.enroll.EnrolledMaterial
+import expo.modules.t3clientcertificates.localnet.LocalNetworkState
 import expo.modules.t3clientcertificates.stream.StreamEnrolledIdentity
 import java.io.IOException
 import java.net.InetAddress
@@ -50,6 +51,7 @@ class DirectPathsTest {
   private var slowHubMs = 0L
   private var fleetHook: (Int) -> Unit = {}
   private var agentPort = 0
+  private var lan = LocalNetworkState.NOT_REQUIRED
   private lateinit var agent: MockWebServer
 
   @Before fun setUp() {
@@ -109,6 +111,7 @@ class DirectPathsTest {
       deadlines = deadlines,
       limits = ProxyLimits(connectTimeoutMs = 300, headerTimeoutMs = 500),
       addressOf = { loopback },
+      localNetwork = { lan },
       onChange = { changes += it }
     ).also {
       closers += { it.shutdown() }
@@ -159,6 +162,39 @@ class DirectPathsTest {
     assertEquals(viewer(ViewerReason.AWAY), paths.awaitPath(MACHINE))
     assertEquals(0, agent.requestCount)
     assertNull(paths.relayAddress())
+  }
+
+  @Test fun withoutTheLocalNetworkPermissionNoProbeRunsAndTheViewerHostIsUsed() {
+    lan = LocalNetworkState.DENIED
+    val paths = paths(stored())
+    assertEquals(viewer(ViewerReason.LOCAL_NETWORK_DENIED), paths.awaitPath(MACHINE))
+    assertEquals(ViewerReason.LOCAL_NETWORK_DENIED, paths.status(MACHINE).reason)
+    Thread.sleep(150)
+    assertEquals(0, agent.requestCount)
+    assertNull(paths.relayAddress())
+  }
+
+  @Test fun aGrantBringsTheHubContactAndTheProbeBackAtOnce() {
+    lan = LocalNetworkState.DENIED
+    agent.enqueue(MockResponse().setBody(answer))
+    val paths = paths(stored())
+    assertEquals(viewer(ViewerReason.LOCAL_NETWORK_DENIED), paths.awaitPath(MACHINE))
+    val hubBefore = fleetCalls.get()
+    lan = LocalNetworkState.GRANTED
+    paths.refreshLocalNetwork()
+    assertEquals(ActivePath(true, IdentityKind.CURRENT), paths.awaitPath(MACHINE))
+    assertTrue(fleetCalls.get() > hubBefore)
+    assertEquals(1, agent.requestCount)
+  }
+
+  @Test fun takingThePermissionAwayEndsTheDirectPath() {
+    agent.enqueue(MockResponse().setBody(answer))
+    val paths = paths()
+    assertEquals(ActivePath(true, IdentityKind.CURRENT), paths.awaitPath(MACHINE))
+    lan = LocalNetworkState.DENIED
+    paths.refreshLocalNetwork()
+    assertEquals(viewer(ViewerReason.LOCAL_NETWORK_DENIED), paths.awaitPath(MACHINE))
+    assertFalse(paths.status(MACHINE).direct)
   }
 
   @Test fun theFirstRequestWithNothingCachedDoesNotWaitForTheHub() {
