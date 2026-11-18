@@ -19,6 +19,8 @@ dependencies {
   // React Native supplies OkHttp (api dependency), so the module follows its version.
   implementation 'com.facebook.react:react-android'
   testImplementation 'junit:junit:4.13.2'
+  // The unit-test android.jar has no working org.json.
+  testImplementation 'org.json:json:20180813'
   testImplementation 'com.squareup.okhttp3:mockwebserver:4.12.0'
   testImplementation 'com.squareup.okhttp3:okhttp-tls:4.12.0'
 }

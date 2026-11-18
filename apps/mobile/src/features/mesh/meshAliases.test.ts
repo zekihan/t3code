@@ -129,3 +129,14 @@ it("keeps going when one origin fails", async () => {
   expect(result.failed).toEqual([origin("z-arch")]);
   expect(result.assigned).toEqual([origin("z-mac")]);
 });
+
+it("assigns and releases nothing for an enrolled identity: the transport applies it itself", async () => {
+  const native = fakeNative("enrolled:device-z-phone-mesh", { [origin("old")]: "kept" });
+  native.markers.set(origin("gone"), "old-hub-id");
+  native.aliases.set(origin("gone"), "old-hub-id");
+  const result = await syncMeshAliases(native.api, [machine("z-arch")]);
+  expect(result).toEqual({ assigned: [], keptOwn: [], released: [], failed: [] });
+  expect(native.aliases.has(origin("z-arch"))).toBe(false);
+  // The KeyChain-era alias for a machine that is gone stays until the enrollment is removed.
+  expect(native.aliases.get(origin("gone"))).toBe("old-hub-id");
+});
