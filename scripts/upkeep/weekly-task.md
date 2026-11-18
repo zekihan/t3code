@@ -1,27 +1,21 @@
-Weekly upkeep for the Android fork (`~/repos/github.com/zekihan/t3code`). Read
-`docs/android-fork.md` on `main` ("Weekly upkeep") if anything below is unclear.
-Never push `main`; never push anything except through the script and the fix
-branches below.
+Weekly upkeep for the Android fork (`~/repos/github.com/zekihan/t3code` on devbox).
+The live prompt is the T3 scheduled task "t3code fork weekly upkeep"; this file is
+its reference copy. The owner wants it to run without them: fix, merge and release
+when every check passes, and ask only when a decision is needed.
 
-1. Run `scripts/upkeep/weekly.sh --report /tmp/upkeep.json` from a checkout of
-   `main` (use `git -C <clone> show origin/main:scripts/upkeep/weekly.sh` if your
-   copy is stale). Needs a clean tree. Read the JSON `status` and the exit code.
-2. Exit 0: report `status` and `message` in this thread.
-   - `open_pr`: a fix PR into `candidate` is open; only report it.
-   - `held`: a pre-release is waiting for the owner's device check; only report it.
-   - `rebased` or `dispatched`: a build was dispatched; check it with
-     `gh run list --workflow release.yml --limit 3` a few minutes later. If the
-     build fails, treat it as a failed build below.
-3. Exit 3 (conflict): `candidate` already holds the new nightly plus the commits
-   that applied. Branch `fix/<nightly>` from `origin/candidate`, cherry-pick each
-   commit in the report's `remaining` list in order (resolve conflicts, keeping
-   fork code in its own files), run the mobile tests, push the branch and open a PR
-   into `candidate` (`gh pr create --base candidate`). It is merged with
-   rebase-merge so the stack stays separate commits. Do not merge it yourself.
-4. Failed build (from step 2 or a failure issue): branch from `origin/candidate`,
-   fix, run the tests, open a PR into `candidate`. Do not touch `mesh`.
-5. Exit 1 or 2: diagnose once (dirty tree, missing remote, auth); if it persists,
-   report the error text and stop.
-
-Running upstream install or test scripts is allowed only while fixing (steps 3 and
-4). Keep the report short: status, new nightly, links to PRs or runs.
+1. Run `scripts/upkeep/weekly.sh --repo <clone> --report /tmp/t3-upkeep.json`
+   from `origin/main` (`git show origin/main:scripts/upkeep/weekly.sh`).
+2. Exit 0: `rebased`/`dispatched` → watch the release run; on failure go to 4.
+   `open_pr` → finish that PR as in 3. `held` → report (owner decision).
+   `up_to_date` → done.
+3. Exit 3 (conflict): branch `fix/<nightly>` from `origin/candidate`, cherry-pick
+   the report's `remaining` commits, resolve keeping fork code in its own files,
+   run the mobile typecheck and tests (and the native checks where the SDK
+   exists), open a PR into `candidate`, merge it with rebase-merge when all
+   checks pass, dispatch `release.yml` for the new tip and watch it.
+4. Failed build: branch from `origin/candidate`, fix, same checks, PR, merge,
+   release. Re-run an apparently flaky failure once before changing code.
+5. Ask the owner (leave the PR open) only for: a conflict needing a product
+   decision, checks failing after two attempts, a security refusal in the release
+   job (never work around it), or a held pre-release.
+6. Exit 1 or 2: diagnose once, retry once if transient, else report.

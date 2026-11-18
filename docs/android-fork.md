@@ -495,14 +495,19 @@ directly.
   the task first force-pushes `candidate` to the new nightly with the stack commits
   that applied cleanly, so the PR's base is the new nightly; the agent's branch
   adds the remaining commits, resolved. It runs the tests and opens a PR into
-  `candidate`, merged with rebase-merge so the stack stays separate commits.
-  Nothing publishes until the owner merges, and `mesh` and the previous release
-  stay where they were. A merge into `candidate` triggers no workflow; the daily
-  check dispatches its build.
+  `candidate`, and when every check passes it merges the PR itself with
+  rebase-merge (the stack stays separate commits), dispatches the release for the
+  new tip and watches it. The owner installs releases through Obtainium and
+  reports breakage; the CI release job's checks still gate every publish.
+- **When the owner is asked.** Only for a decision: a conflict that cannot be
+  resolved without changing or dropping fork behaviour, checks still failing
+  after two fix attempts, a release refused by a security check (signing
+  certificate, manifest, versionCode, base tag), or a pre-release held for a
+  `targetSdkVersion` change. Any open PR is left for the owner then.
 - **Reporting.** Details stay in the task's T3 thread; the PR or a failure issue on
   the fork arrives through GitHub notifications.
 - **Open fixes.** While a fix PR into `candidate` is open, the weekly task does not
-  rebase or force-push `candidate`; it reports instead.
+  rebase or force-push `candidate`; it finishes that PR first.
 - **Accepted risk.** devbox's SSH key can push to every repository and is a
   repository admin, which bypasses the ruleset on `main`. The agent runs upstream
   install and test scripts on devbox when fixing a failure. A compromised upstream
