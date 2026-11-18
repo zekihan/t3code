@@ -104,6 +104,7 @@ import { holdLaunchSplashForHomeRows, settleLaunchSplashHomeRows } from "./home-
 import { useWorkspaceTabs } from "../layout/workspace/WorkspaceTabsContext";
 import { ThreadListFilters } from "./ThreadListFilters";
 import { deriveHomeEmptyState } from "./home-empty-state";
+import { MeshEmptyStateLink } from "../mesh/MeshEmptyStateLink";
 
 interface HomeScreenProps {
   /** Whether this list is the one on screen; see `useHomeRouteVisible`. */
@@ -666,6 +667,7 @@ export function HomeScreen(props: HomeScreenProps) {
                 }
                 variant="plain"
               />
+              {emptyState.showsAddEnvironment ? <MeshEmptyStateLink /> : null}
               {emptyState.loading ? (
                 <View className="mt-4 items-center">
                   <AppActivityIndicator colorClassName="accent-icon-muted" />

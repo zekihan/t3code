@@ -74,6 +74,10 @@ class T3ClientCertificatesModule : Module() {
     }
     AsyncFunction("choose") { url: String, promise: Promise -> choose(url, promise) }
     AsyncFunction("remove") { url: String -> remove(url) }
+    // The Mesh screen hands the hub's alias to mesh viewer origins that have none of their own.
+    AsyncFunction("assignMeshAlias") { url: String, alias: String -> assignMeshAlias(url, alias) }
+    AsyncFunction("releaseMeshAlias") { url: String -> releaseMeshAlias(url) }
+    Function("getMeshAliasOrigins") { meshAssignedOrigins(preferences.all) }
     // Register synchronously so cancellation cannot overtake the async transfer callback.
     Function("createTransfer") { url: String -> createTransfer(url) }
     Function("cancel") { id: String -> cancel(id) }
@@ -175,7 +179,10 @@ class T3ClientCertificatesModule : Module() {
         chain.forEach { it.checkValidity() }
         synchronized(lock) {
           check(!destroyed) { "Certificate operation cancelled because the app closed." }
-          check(preferences.edit().putString(origin, alias).commit()) {
+          // A person's choice ends the app's claim on the origin.
+          check(
+            preferences.edit().putString(origin, alias).remove(meshMarker(origin)).commit()
+          ) {
             "Could not save certificate choice"
           }
           retire(origin)
@@ -207,11 +214,59 @@ class T3ClientCertificatesModule : Module() {
 
   private fun remove(url: String) {
     val origin = requireNotNull(certificateOrigin(url)) { "HTTPS host required" }
+    val released = mutableListOf<String>()
     synchronized(lock) {
-      check(preferences.edit().remove(origin).commit()) { "Could not remove certificate choice" }
+      check(preferences.edit().remove(origin).remove(meshMarker(origin)).commit()) {
+        "Could not remove certificate choice"
+      }
       retire(origin)
+      if (origin == MESH_HUB_ORIGIN) {
+        planMeshReleaseAll(preferences.all).forEach { (meshOrigin, plan) ->
+          applyMeshPlan(meshOrigin, plan)
+          if (plan.aliasChanged) released += meshOrigin
+        }
+      }
     }
     sendEvent("changed", mapOf("origin" to origin))
+    released.forEach { sendEvent("changed", mapOf("origin" to it)) }
+  }
+
+  /** False when the origin keeps an alias the person chose. */
+  private fun assignMeshAlias(url: String, alias: String): Boolean {
+    val origin = requireNotNull(certificateOrigin(url)) { "HTTPS host required" }
+    require(alias.isNotEmpty()) { "Alias required" }
+    val plan =
+      synchronized(lock) {
+        check(!destroyed) { "Certificate operation cancelled because the app closed." }
+        val plan = planMeshAssign(preferences.all, origin, alias) ?: return false
+        applyMeshPlan(origin, plan)
+        plan
+      }
+    if (plan.aliasChanged) sendEvent("changed", mapOf("origin" to origin))
+    return true
+  }
+
+  /** True when an alias the app assigned was removed. */
+  private fun releaseMeshAlias(url: String): Boolean {
+    val origin = requireNotNull(certificateOrigin(url)) { "HTTPS host required" }
+    val plan =
+      synchronized(lock) {
+        check(!destroyed) { "Certificate operation cancelled because the app closed." }
+        val plan = planMeshRelease(preferences.all, origin) ?: return false
+        applyMeshPlan(origin, plan)
+        plan
+      }
+    if (plan.aliasChanged) sendEvent("changed", mapOf("origin" to origin))
+    return plan.aliasChanged
+  }
+
+  // Called under lock.
+  private fun applyMeshPlan(origin: String, plan: MeshAliasPlan) {
+    val edit = preferences.edit()
+    plan.puts.forEach { (key, value) -> edit.putString(key, value) }
+    plan.removes.forEach { edit.remove(it) }
+    check(edit.commit()) { "Could not save certificate choice" }
+    if (plan.aliasChanged) retire(origin)
   }
 
   private fun createTransfer(url: String): String {
