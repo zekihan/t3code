@@ -349,8 +349,11 @@ directly.
   hub contact and persists it; after 1 week without a refresh the direct path is
   off. A CA rotation therefore reaches the phone like it reaches agents.
 - **Route.** The machine list carries each machine's LAN address and direct port
-  while it is home. The app persists them and the expected agent identity for up to
-  1 week, so a cold start works without the hub.
+  while it is home (`direct: {address, port}`, with `agentIdentity`). The app
+  persists them and the expected agent identity for up to 1 week, so a cold start
+  works without the hub. A route survives the hub later reporting `direct: null`
+  (the machine disconnected from the hub) until it is a week old, which the overlap
+  case in item 4 needs.
 - **Home gate.** The app tries the direct path only when the hub's `X-Real-IP`
   check says the phone is home. Without the hub it probes once per network change
   and caches a failure for 60 s, as agents do, so away from home it does not wait
@@ -360,9 +363,13 @@ directly.
   CONNECT proxy turns `CONNECT t3.<machine>.mesh.noqer.com:443` into a TCP
   connection to the machine's LAN address and direct port, and relays nothing
   else. TLS stays end to end between the app and the agent.
-  - **OkHttp:** a direct client uses that proxy and a trust manager that accepts
-    only the agent check above, in place of system trust and hostname
-    verification.
+  - **OkHttp:** every client's builder gets a proxy selector, an application
+    interceptor (path choice, fallback, replay rules) and a network interceptor.
+    A connection through the loopback proxy uses TLS 1.3 with the enrolled
+    identity and a trust manager that accepts only the agent check above, in place
+    of system trust and hostname verification. Only the probe has its own client.
+    A non-replay-safe request that fails after it was written becomes a
+    `ProtocolException`, so OkHttp's own retry never repeats it.
   - **Streams:** the device stream document's origin is `https://localhost/` on
     Android, so its connections to the environment are cross-origin; A8 starts by
     checking that `onReceivedSslError` and `onReceivedClientCertRequest` fire for
@@ -379,7 +386,9 @@ directly.
   - **Path selection:** the app picks the path with a side-effect-free probe
     (`GET /.well-known/t3-mesh/direct`, answered by the agent itself), with 2 s for
     TCP and TLS and 5 s for the response, and falls back to the viewer host when
-    it fails. A certificate or authorization failure on the direct path is shown
+    it fails. The probe's answer must name this machine and the device identity
+    the app presented. A request to a machine whose path is undecided waits at
+    most 8 s. A certificate or authorization failure on the direct path is shown
     even when the fallback works.
   - **No replays:** once a request has been sent on a path, the app retries it on
     the other path only if it is replay-safe (`GET`, `HEAD`, or opening a
@@ -527,3 +536,12 @@ directly.
   widening is accepted: the enumerated `device-*-mesh` identities only, client auth,
   reaching only `mesh-*` hosts.
 - 2026-11-18: item 3 (A6) is skipped for now, even once upstream PR #38045 lands.
+
+## Shipped
+
+- A7, 2026-11-18: hub 0.2.0, homelab #143 and #144, app `+mesh.5`; the phone and
+  the tablet are enrolled as `device-z-phone-mesh` and `device-z-tablet-mesh`.
+- A8, 2026-11-18: hub and agents 0.3.0 (homelab #145 and #146), the device
+  listener bound on 27443 on all three machines; app `+mesh.6`. Not yet checked on
+  a device: a stream through the direct path, and the phone at home with the hub
+  scaled to zero.
