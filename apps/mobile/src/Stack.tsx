@@ -103,6 +103,7 @@ import { SettingsClientStorageRouteScreen } from "./features/settings/SettingsCl
 import { SettingsDiagnosticsRouteScreen } from "./features/diagnostics/SettingsDiagnosticsRouteScreen";
 import { SettingsProviderAccountsRouteScreen } from "./features/settings/SettingsProviderAccountsRouteScreen";
 import { SettingsAuthRouteScreen } from "./features/settings/SettingsAuthRouteScreen";
+import { MeshRouteScreen } from "./features/mesh/MeshRouteScreen";
 import { SettingsEnvironmentDetailRouteScreen } from "./features/settings/SettingsEnvironmentDetailRouteScreen";
 import {
   SettingsIssueTrackerRouteScreen,
@@ -166,6 +167,7 @@ const { title: _compactBrandTitle, ...compactBrandHeaderOptions } = getCompactBr
 const ROUTE_TITLES: Readonly<Record<string, string>> = {
   Settings: msg("Settings"),
   SettingsEnvironments: msg("Environments"),
+  SettingsMesh: msg("Mesh"),
   SettingsEnvironmentDetail: msg("Environment"),
   SettingsEnvironmentNewThreads: msg("Threads"),
   SettingsEnvironmentSourceControl: msg("Source control & issues"),
@@ -241,6 +243,11 @@ const SETTINGS_SCREENS = {
   SettingsEnvironments: createNativeStackScreen({
     screen: SettingsEnvironmentsRouteScreen,
     linking: "settings/environments",
+    options: settingsPage(),
+  }),
+  SettingsMesh: createNativeStackScreen({
+    screen: MeshRouteScreen,
+    linking: "settings/mesh",
     options: settingsPage(),
   }),
   SettingsEnvironmentDetail: createNativeStackScreen({

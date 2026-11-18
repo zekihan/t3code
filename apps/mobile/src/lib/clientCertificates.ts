@@ -26,6 +26,10 @@ export const onClientCertificateIdentityProblem = (
 });
 export const chooseClientCertificate = (_url: string): Promise<string | null> => unsupported();
 export const removeClientCertificate = (_url: string): Promise<void> => unsupported();
+export const assignMeshClientCertificate = (_url: string, _alias: string): Promise<boolean> =>
+  unsupported();
+export const releaseMeshClientCertificate = (_url: string): Promise<boolean> => unsupported();
+export const meshClientCertificateOrigins = (): readonly string[] => [];
 export const transferWithClientCertificate = async (
   _input: ClientCertificateTransferInput,
 ): Promise<{ status: number } | null> => null;
