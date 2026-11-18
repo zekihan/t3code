@@ -53,7 +53,7 @@ internal class StreamSession(
   private val started = AtomicBoolean(false)
   private lateinit var document: String
   private val certificates =
-    StreamClientCertificates(service, request.environmentUrl, request.alias)
+    StreamClientCertificates(service, request.environmentUrl, request.alias, request.enrolled)
 
   private val client =
     object : WebViewClient() {

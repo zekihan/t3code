@@ -4,6 +4,7 @@ import {
   releaseMeshClientCertificate,
   selectedClientCertificate,
 } from "../../lib/clientCertificates";
+import { isEnrolledAlias } from "./meshEnrollmentLogic";
 import type { MeshMachine } from "./meshMachines";
 import { MESH_HUB_URL } from "./meshViewerUrl";
 
@@ -35,10 +36,10 @@ export interface MeshAliasSync {
 const withoutSlash = (origin: string) => origin.replace(/\/$/, "");
 
 /**
- * Makes the hub's identity the viewer hosts' identity, for the machines in `machines` only.
- * Call it with a list the hub just returned, and only then: an origin that has no alias gets the
- * hub's, an alias the person chose is left alone, and an alias the app assigned earlier is
- * removed when its machine is no longer listed. Without a hub alias there is nothing to reuse.
+ * Makes the hub's KeyChain identity the viewer hosts' identity, for the machines in a list the hub
+ * just returned: an origin with no alias gets it, a chosen alias stays, and an assigned one goes
+ * when its machine is no longer listed. An enrolled identity is no alias: the transport applies
+ * it to every listed origin itself (`setMeshOrigins`).
  */
 export async function syncMeshAliases(
   api: MeshAliasApi,
@@ -51,7 +52,7 @@ export async function syncMeshAliases(
     failed: [] as string[],
   };
   const hubAlias = api.hubAlias();
-  if (hubAlias === null) return result;
+  if (hubAlias === null || isEnrolledAlias(hubAlias)) return result;
   const listed = new Set(machines.map((machine) => machine.viewerOrigin));
   for (const origin of listed) {
     try {

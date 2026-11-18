@@ -29,11 +29,13 @@ vi.mock("../../components/ui/EmptyState", () => ({
     detail: string;
     actionLabel?: string;
     onAction?: () => void;
+    action?: ReactNode;
   }) => (
     <section>
       <h1>{props.title}</h1>
       <p>{props.detail}</p>
-      {props.actionLabel ? <button onClick={props.onAction}>{props.actionLabel}</button> : null}
+      {props.action ??
+        (props.actionLabel ? <button onClick={props.onAction}>{props.actionLabel}</button> : null)}
     </section>
   ),
 }));
@@ -111,6 +113,35 @@ it("says the hub refused the certificate, and offers another one", () => {
   expect(container.textContent).toContain("HTTP 403");
   act(() => container.querySelector("button")!.click());
   expect(props.onChooseCertificate).toHaveBeenCalledOnce();
+});
+
+it("offers enrollment beside the picker when the hub has no identity for this phone", () => {
+  const onEnroll = vi.fn();
+  const { container, props } = render({
+    state: state({ problem: { kind: "no-certificate", message: null } }),
+    onEnroll,
+  });
+  act(() =>
+    container.querySelector<HTMLButtonElement>('[aria-label="Enroll this device"]')!.click(),
+  );
+  expect(onEnroll).toHaveBeenCalledOnce();
+  act(() =>
+    container.querySelector<HTMLButtonElement>('[aria-label="Select certificate"]')!.click(),
+  );
+  expect(props.onChooseCertificate).toHaveBeenCalledOnce();
+});
+
+it("offers enrollment when the hub refused the certificate, but not for a network error", () => {
+  const refused = render({
+    state: state({ problem: { kind: "refused", status: 403 } }),
+    onEnroll: vi.fn(),
+  });
+  expect(refused.container.querySelector('[aria-label="Enroll this device"]')).not.toBeNull();
+  const offline = render({
+    state: state({ problem: { kind: "unavailable", message: "Network request failed" } }),
+    onEnroll: vi.fn(),
+  });
+  expect(offline.container.querySelector('[aria-label="Enroll this device"]')).toBeNull();
 });
 
 it("tells a network error apart and offers a retry", () => {

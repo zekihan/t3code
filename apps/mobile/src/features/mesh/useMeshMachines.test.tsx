@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   choose: vi.fn(),
   fetch: vi.fn(),
   sync: vi.fn(),
+  setOrigins: vi.fn(),
   save: vi.fn(),
   load: vi.fn(),
 }));
@@ -19,6 +20,7 @@ vi.mock("./useClientCertificateStatus", () => ({
 }));
 vi.mock("./meshHub", () => ({ fetchMeshMachines: mocks.fetch }));
 vi.mock("./meshAliases", () => ({ nativeMeshAliasApi: {}, syncMeshAliases: mocks.sync }));
+vi.mock("./meshEnrollment", () => ({ setMeshOrigins: mocks.setOrigins }));
 vi.mock("./meshStore", () => ({
   loadCachedMeshMachines: mocks.load,
   saveCachedMeshMachines: mocks.save,
@@ -56,6 +58,7 @@ beforeEach(() => {
   mocks.alias = null;
   mocks.load.mockResolvedValue(null);
   mocks.sync.mockResolvedValue({});
+  mocks.setOrigins.mockResolvedValue(undefined);
   mocks.choose.mockResolvedValue("hub-id");
   mocks.fetch.mockResolvedValue({ kind: "ok", machines: [machine] });
 });
@@ -67,6 +70,31 @@ it("asks for the hub identity on the first open, then lists and shares it with t
   expect(latest.state.machines).toEqual([machine]);
   expect(mocks.sync).toHaveBeenCalledWith({}, [machine]);
   expect(mocks.save).toHaveBeenCalledWith([machine]);
+  unmount();
+});
+
+it("tells the transport which viewer origins the hub listed, for the enrolled identity", async () => {
+  mocks.alias = "enrolled:device-z-phone-mesh";
+  const unmount = await open();
+  expect(mocks.choose).not.toHaveBeenCalled();
+  expect(mocks.setOrigins).toHaveBeenCalledWith([machine.viewerOrigin]);
+  unmount();
+});
+
+it("does not register origins from a list the hub did not return", async () => {
+  mocks.alias = "hub-id";
+  mocks.fetch.mockResolvedValue({ kind: "refused", status: 403 });
+  const unmount = await open();
+  expect(mocks.setOrigins).not.toHaveBeenCalled();
+  unmount();
+});
+
+it("keeps listing when registering the origins fails", async () => {
+  mocks.alias = "hub-id";
+  mocks.setOrigins.mockRejectedValue(new Error("native module missing"));
+  const unmount = await open();
+  expect(latest.state.machines).toEqual([machine]);
+  expect(mocks.sync).toHaveBeenCalled();
   unmount();
 });
 

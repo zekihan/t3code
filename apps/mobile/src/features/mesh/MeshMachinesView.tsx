@@ -20,6 +20,8 @@ export interface MeshMachinesViewProps {
   readonly onOpen: (environmentId: EnvironmentId) => void;
   readonly onPair: (machine: MeshMachine) => void;
   readonly onChooseCertificate: () => void;
+  /** Opens the Device tab. Offered next to the KeyChain picker when the hub has no identity for us. */
+  readonly onEnroll?: () => void;
   readonly onRetry: () => void;
 }
 
@@ -45,6 +47,7 @@ export function MeshMachinesView(props: MeshMachinesViewProps) {
   }
   if (kind === "no-certificate" || kind === "refused" || kind === "unavailable") {
     const problem = state.problem!;
+    const enrollable = kind !== "unavailable" && props.onEnroll !== undefined;
     return (
       <EmptyState
         variant="plain"
@@ -52,6 +55,18 @@ export function MeshMachinesView(props: MeshMachinesViewProps) {
         detail={problemDetail(problem)}
         actionLabel={kind === "unavailable" ? "Try again" : "Select certificate"}
         onAction={kind === "unavailable" ? props.onRetry : props.onChooseCertificate}
+        action={
+          enrollable ? (
+            <View className="items-center gap-2">
+              <Button
+                tone="primary"
+                label="Select certificate"
+                onPress={props.onChooseCertificate}
+              />
+              <Button tone="text" label="Enroll this device" onPress={props.onEnroll!} />
+            </View>
+          ) : undefined
+        }
       />
     );
   }
