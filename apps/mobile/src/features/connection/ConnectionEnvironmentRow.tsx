@@ -28,6 +28,8 @@ import { ConnectionDiagnosisDetails, useConnectionDiagnosis } from "./Connection
 import { ConnectionFormField } from "./ConnectionFormField";
 import { ConnectionStatusDot } from "./ConnectionStatusDot";
 import { environmentStatusText } from "./environmentStatusText";
+import { explainConnectionError, hostOfAddress } from "../mesh/localNetworkLogic";
+import { useLocalNetworkAccess } from "../mesh/useLocalNetworkAccess";
 
 function connectionStatusLabel(environment: ConnectedEnvironmentSummary): string | null {
   if (!environment.isEnabled && environment.connectionState !== "unsupported") {
@@ -73,9 +75,16 @@ export function ConnectionEnvironmentRow(props: {
     connectionState.attempt,
   );
   const certificateProblem = enabled ? clientCertificateSelectionMessage(certificate.status) : null;
-  const statusLabel = connectionStatusLabel(props.environment);
-  const statusTraceId = enabled ? props.environment.connectionErrorTraceId : null;
+  // Android 17 drops traffic to a local network address without the permission, which only ever
+  // looks like a timeout; say what is wrong instead.
+  const localNetwork = useLocalNetworkAccess().state ?? "not-required";
+  const lanHost = hostOfAddress(props.environment.displayUrl);
   const hasConnectionFailure = enabled && props.environment.connectionError !== null;
+  const rawStatusLabel = connectionStatusLabel(props.environment);
+  const statusLabel = hasConnectionFailure
+    ? explainConnectionError(rawStatusLabel, lanHost, localNetwork)
+    : rawStatusLabel;
+  const statusTraceId = enabled ? props.environment.connectionErrorTraceId : null;
   const freeze = enabled
     ? hostFreezeNotice(props.environment.environmentLabel, serverConfig?.lastEventLoopStall)
     : null;
@@ -140,7 +149,9 @@ export function ConnectionEnvironmentRow(props: {
           ) : null}
           {diagnosis && !certificateProblem ? (
             <>
-              <Text className="text-xs text-danger-foreground">{diagnosis.headline}</Text>
+              <Text className="text-xs text-danger-foreground">
+                {explainConnectionError(diagnosis.headline, lanHost, localNetwork)}
+              </Text>
               {connectionState.attempt > 0 ? (
                 <Text className="text-xs text-foreground-muted">
                   {`Retrying · attempt ${connectionState.attempt}`}

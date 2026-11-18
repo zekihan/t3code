@@ -1,9 +1,11 @@
 import { useIsFocused, useNavigation } from "@react-navigation/native";
 import type { EnvironmentId } from "@t3tools/contracts";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { AppText as Text } from "../../components/ui/AppText";
+import { Button } from "../../components/ui/Button";
 import { ScreenScrollView as ScrollView } from "../../components/ui/ScreenScrollView";
 import { RefreshControl } from "../../components/ui/RefreshControl";
 import { SegmentedControl } from "../../components/ui/SegmentedControl";
@@ -15,6 +17,8 @@ import type { MeshMachine } from "./meshMachines";
 import { MeshEnrollmentView } from "./MeshEnrollmentView";
 import { MeshFleetView } from "./MeshFleetView";
 import { MeshMachinesView } from "./MeshMachinesView";
+import { LOCAL_NETWORK_DENIED } from "./localNetworkLogic";
+import { useLocalNetworkAccess } from "./useLocalNetworkAccess";
 import { useMeshEnrollment } from "./useMeshEnrollment";
 import { useMeshFleet } from "./useMeshFleet";
 import { useMeshMachines } from "./useMeshMachines";
@@ -32,6 +36,15 @@ export function MeshRouteScreen() {
   const focused = useIsFocused();
   const fleet = useMeshFleet({ focused: focused && tab === "fleet" });
   const enrollment = useMeshEnrollment();
+  const localNetwork = useLocalNetworkAccess();
+  const askLocalNetwork = localNetwork.ask;
+  const enrolled = enrollment.state.status !== null;
+  // The direct connection and the home LAN need Android 17's local network permission; this is the
+  // first moment an enrolled device is about to use them, so the person is asked here, once.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- asks the system for a permission; the answer is held natively
+  useEffect(() => {
+    if (focused && enrolled) void askLocalNetwork("mesh-screen");
+  }, [focused, enrolled, askLocalNetwork]);
   const [pulled, setPulled] = useState(false);
   const paired = pairedEnvironmentsByMachine(mesh.state.machines ?? [], connectedEnvironments);
 
@@ -79,6 +92,19 @@ export function MeshRouteScreen() {
         contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 18) + 18 }}
         refreshControl={<RefreshControl refreshing={pulled} onRefresh={pull} />}
       >
+        {enrolled && localNetwork.state === "denied" ? (
+          <View className="gap-2 pb-3" accessibilityLabel="Local network access denied">
+            <Text className="text-sm text-danger-foreground">{LOCAL_NETWORK_DENIED}</Text>
+            <View className="flex-row">
+              <Button
+                tone="secondary"
+                size="compact"
+                label="Settings"
+                onPress={localNetwork.openSettings}
+              />
+            </View>
+          </View>
+        ) : null}
         <View className="pb-3">
           <SegmentedControl
             variant="standalone"

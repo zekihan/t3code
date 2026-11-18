@@ -1,3 +1,4 @@
+import { LOCAL_NETWORK_DENIED } from "./localNetworkLogic";
 import type { DirectFailure, DirectStatus, DirectViewerReason } from "./meshDirect.types";
 
 const REASONS: Readonly<Record<DirectViewerReason, string>> = {
@@ -7,6 +8,7 @@ const REASONS: Readonly<Record<DirectViewerReason, string>> = {
   "no-route": "The machine has no direct address: it is not at home.",
   "route-expired": "The machine's direct address is over a week old.",
   away: "The hub sees this phone away from home.",
+  "local-network-denied": LOCAL_NETWORK_DENIED,
   "probe-failed": "The machine did not answer directly; trying again shortly.",
   pending: "Choosing a path.",
 };
