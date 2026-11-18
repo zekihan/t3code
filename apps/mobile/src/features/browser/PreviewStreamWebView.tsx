@@ -22,7 +22,6 @@ import {
 } from "react";
 import { msg, useGT, useMessages } from "gt-react-native";
 import { Platform, Pressable, TextInput, View } from "react-native";
-import { WebView } from "react-native-webview";
 import * as Clipboard from "expo-clipboard";
 
 import { AppText } from "../../components/ui/AppText";
@@ -34,6 +33,7 @@ import { usePreviewStreamAccess } from "../../state/preview";
 import { previewPromptText } from "./previewPromptText";
 import { StreamSurfaceUnavailable } from "../mesh/CertificateSurfaceState";
 import { streamSurfacesEnabled } from "../mesh/streamSurfaces";
+import { WebView, type StreamWebViewExtras } from "../mesh/streamWebView";
 
 import {
   previewStreamDocument,
@@ -205,6 +205,7 @@ function AuthorizedPreviewStream({
       {...props}
       ref={ref}
       configuration={configuration}
+      certificateUrl={props.access.httpBase}
       onUnauthorized={() => {
         const refusals = ++unauthorized.current;
         if (refusals >= MAX_REFUSALS) return false;
@@ -233,6 +234,8 @@ function AuthorizedPreviewStream({
 function PreviewStreamDocumentView({
   ref,
   configuration,
+  certificateUrl,
+  interactive,
   background,
   compact,
   pdfUri,
@@ -248,13 +251,15 @@ function PreviewStreamDocumentView({
   onRecoverProcess,
 }: Omit<NativeStreamBridge, "onUnauthorized" | "onRefused"> & {
   readonly configuration: string;
+  readonly certificateUrl: string;
+  readonly interactive: boolean;
   readonly background: string;
   readonly onUnauthorized: () => boolean;
   readonly onRetry: () => void;
   readonly onStreaming: () => void;
   readonly onRecoverProcess: () => boolean;
 }) {
-  const webView = useRef<WebView<object>>(null);
+  const webView = useRef<WebView<StreamWebViewExtras>>(null);
   const gt = useGT();
   const messages = useMessages();
   const active = useRef(false);
@@ -367,9 +372,12 @@ function PreviewStreamDocumentView({
         </View>
       ) : null}
       <View className="relative flex-1">
-        <WebView<object>
+        <WebView<StreamWebViewExtras>
           ref={webView}
           source={source}
+          certificateUrl={certificateUrl}
+          interactive={interactive}
+          hidden={!!pdfUri}
           originWhitelist={["*"]}
           scrollEnabled={false}
           bounces={false}

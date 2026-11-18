@@ -1,4 +1,5 @@
 const { withMainApplication } = require("expo/config-plugins");
+const { START_GUARD } = require("./lib/meshStreamGuard.cjs");
 
 const install = "expo.modules.t3clientcertificates.T3CertificateTransport.install(this)";
 const reassert = "expo.modules.t3clientcertificates.T3CertificateTransport.reassert()";
@@ -13,7 +14,12 @@ function installCertificateTransport(source) {
   if (matches.length !== 1)
     throw new Error("Cannot install client certificates before React Native startup");
   const match = matches[0];
-  const offset = match.index + match[0].length;
+  let offset = match.index + match[0].length;
+  // withMeshStream.cjs puts its stream process guard right after super.onCreate(); the transport
+  // goes after it, so the stream process never installs it.
+  if (source.slice(offset).trimStart().startsWith(START_GUARD)) {
+    offset = source.indexOf(START_GUARD, offset) + START_GUARD.length;
+  }
   if (source.includes(install)) {
     if (!source.slice(offset).trimStart().startsWith(install) || source.split(install).length !== 2)
       throw new Error(

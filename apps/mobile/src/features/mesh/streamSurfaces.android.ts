@@ -1,6 +1,14 @@
+import { Platform } from "react-native";
+
 /**
- * The device stream and browser preview stream run a script in a main-process WebView that
- * connects to the T3 server. A WebView cannot be given a per-surface client certificate, so the
- * fork does not offer them on Android until they move to a separate process.
+ * The device stream and the browser preview stream run in the `:stream` process (see
+ * streamWebView.android.tsx), which draws into the app through SurfaceControlViewHost.
+ * Flip this to take both streams away again, e.g. if a Chromium update breaks the bridge.
  */
-export const streamSurfacesEnabled = false;
+const STREAMS_DISABLED = false;
+
+/** SurfaceControlViewHost arrived with Android 11. */
+const MIN_STREAM_API_LEVEL = 30;
+
+export const streamSurfacesEnabled =
+  !STREAMS_DISABLED && Number(Platform.Version) >= MIN_STREAM_API_LEVEL;
