@@ -4,6 +4,8 @@ const MESH_APP_NAME = "T3 Mesh";
 // expo-dev-client registers `exp+<slug>` as a second URL scheme.
 const MESH_SLUG = "t3-mesh";
 const MESH_NATIVE_MODS_PLUGIN = "./plugins/withMeshNativeMods.cjs";
+// Keeps React Native out of the `:stream` process that hosts the device and browser preview streams.
+const MESH_STREAM_PLUGIN = "./plugins/withMeshStream.cjs";
 
 const VERSION_NAME_PATTERN = /^\d+\.\d+\.\d+-nightly\.\d{8}\.\d+\+mesh\.\d{1,2}(\.rollback)?$/;
 const MAX_VERSION_CODE = 2100000000;
@@ -77,9 +79,10 @@ function withMesh(config, env = process.env) {
       versionCode,
       intentFilters: (android.intentFilters ?? []).filter(keepsIntentFilter),
     },
-    // First entry: its mods are registered first, so they run after every upstream plugin's.
+    // First entries: their mods are registered first, so they run after every upstream plugin's.
     plugins: [
       [MESH_NATIVE_MODS_PLUGIN, { versionName, versionCode }],
+      MESH_STREAM_PLUGIN,
       ...(config.plugins ?? []).filter((plugin) => !REMOVED_PLUGINS.has(pluginName(plugin))),
     ],
     extra: {
@@ -102,5 +105,6 @@ function withMesh(config, env = process.env) {
 
 withMesh.resolveVersion = resolveVersion;
 withMesh.NATIVE_MODS_PLUGIN = MESH_NATIVE_MODS_PLUGIN;
+withMesh.STREAM_PLUGIN = MESH_STREAM_PLUGIN;
 
 module.exports = withMesh;

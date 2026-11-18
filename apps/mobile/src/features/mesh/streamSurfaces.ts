@@ -1,2 +1,2 @@
-/** The device stream and browser preview stream are offered on every platform except Android. */
+/** The device stream and browser preview stream are offered; Android decides in streamSurfaces.android.ts. */
 export const streamSurfacesEnabled = true;

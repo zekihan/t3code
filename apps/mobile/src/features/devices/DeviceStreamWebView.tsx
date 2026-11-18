@@ -9,13 +9,13 @@ import {
   type Ref,
 } from "react";
 import { Platform, View } from "react-native";
-import { WebView } from "react-native-webview";
 import type { DeviceStreamStatus } from "@t3tools/client-runtime/device/stream";
 
 import { AppActivityIndicator } from "../../components/ui/AppActivityIndicator";
 import { AppText } from "../../components/ui/AppText";
 import { StreamSurfaceUnavailable } from "../mesh/CertificateSurfaceState";
 import { streamSurfacesEnabled } from "../mesh/streamSurfaces";
+import { WebView, type StreamWebViewExtras } from "../mesh/streamWebView";
 
 import {
   deviceStreamBaseUrl,
@@ -61,6 +61,7 @@ function EnabledDeviceStreamWebView({
       ref={ref}
       configuration={configuration}
       baseUrl={deviceStreamBaseUrl(Platform.OS, props.platform, props.access.httpBase)}
+      certificateUrl={props.access.httpBase}
       background={props.colors.background}
       onUnauthorized={props.onUnauthorized}
       onInputConnected={props.onInputConnected}
@@ -87,6 +88,7 @@ function DeviceStreamDocumentView({
   ref,
   configuration,
   baseUrl,
+  certificateUrl,
   background,
   onUnauthorized,
   onInputConnected,
@@ -96,12 +98,13 @@ function DeviceStreamDocumentView({
 }: NativeStreamBridge & {
   readonly configuration: string;
   readonly baseUrl: string;
+  readonly certificateUrl: string;
   readonly background: string;
   readonly onRetry: () => void;
   readonly onStreaming: () => void;
   readonly onRecoverProcess: () => boolean;
 }) {
-  const webView = useRef<WebView<object>>(null);
+  const webView = useRef<WebView<StreamWebViewExtras>>(null);
   const active = useRef(false);
   const failed = useRef(false);
   const bootstrapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -162,9 +165,11 @@ function DeviceStreamDocumentView({
   };
   return (
     <View className="flex-1" style={{ backgroundColor: background }}>
-      <WebView<object>
+      <WebView<StreamWebViewExtras>
         ref={webView}
         source={source}
+        certificateUrl={certificateUrl}
+        interactive
         originWhitelist={["*"]}
         scrollEnabled={false}
         bounces={false}
