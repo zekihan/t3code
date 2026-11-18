@@ -5,8 +5,8 @@ vi.mock("../../lib/clientCertificates", () => ({
   selectedClientCertificate: vi.fn(() => "hub-id"),
 }));
 
-import { fetchMeshMachines } from "./meshHub";
-import { MESH_MACHINES_URL } from "./meshViewerUrl";
+import { fetchMeshFleet, fetchMeshMachines } from "./meshHub";
+import { MESH_FLEET_URL, MESH_MACHINES_URL } from "./meshViewerUrl";
 
 const arch = {
   name: "z-arch",
@@ -93,4 +93,64 @@ it("gives up after the timeout", async () => {
   } finally {
     vi.useRealTimers();
   }
+});
+
+const fleetBody = {
+  caller: { path: "LAN" },
+  machines: [
+    {
+      ...arch,
+      agentVersion: "0.1.12",
+      certNotAfter: null,
+      tunnel: { path: "LAN", connectedSince: null },
+      alerts: [],
+    },
+  ],
+};
+
+it("asks the fleet endpoint and times the request to its headers, not the JSON parse", async () => {
+  let clock = 1_000;
+  const response = new Response(JSON.stringify(fleetBody), { status: 200 });
+  const parse = response.json.bind(response);
+  response.json = async () => {
+    clock += 500;
+    return parse();
+  };
+  const fetch = vi.fn(async () => {
+    clock += 42;
+    return response;
+  });
+  const result = await fetchMeshFleet({
+    fetch,
+    hasCertificate: () => true,
+    now: () => clock,
+  });
+  expect(fetch).toHaveBeenCalledWith(
+    MESH_FLEET_URL,
+    expect.objectContaining({ headers: { accept: "application/json" } }),
+  );
+  expect(result.kind === "ok" && result.rttMs).toBe(42);
+  expect(result.kind === "ok" && result.fleet.callerPath).toBe("LAN");
+  expect(result.kind === "ok" && result.fleet.machines.map((machine) => machine.name)).toEqual([
+    "z-arch",
+  ]);
+});
+
+it("makes no fleet request without a certificate and reports refusals and bad answers", async () => {
+  const none = respond(200);
+  expect(await fetchMeshFleet({ fetch: none, hasCertificate: () => false })).toEqual({
+    kind: "no-certificate",
+  });
+  expect(none).not.toHaveBeenCalled();
+  expect(await fetchMeshFleet({ fetch: respond(403), hasCertificate: () => true })).toEqual({
+    kind: "refused",
+    status: 403,
+  });
+  expect(await fetchMeshFleet({ fetch: respond(502), hasCertificate: () => true })).toEqual({
+    kind: "unavailable",
+    message: "The hub answered HTTP 502.",
+  });
+  expect(
+    await fetchMeshFleet({ fetch: respond(200, { machines: "x" }), hasCertificate: () => true }),
+  ).toEqual({ kind: "unavailable", message: "The hub's answer was not a fleet status." });
 });
