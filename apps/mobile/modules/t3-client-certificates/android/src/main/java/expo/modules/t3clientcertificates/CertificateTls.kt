@@ -130,7 +130,9 @@ internal class OriginSocketFactory(
   private val factory: (String) -> SSLSocketFactory,
   private val opened: (String, Socket) -> Unit,
   private val lock: Any = Any(),
-  private val generation: (String) -> Any? = { null }
+  private val generation: (String) -> Any? = { null },
+  /** A factory for a connection that came through the direct path's proxy, else null. */
+  private val direct: (String, Socket) -> SSLSocketFactory? = { _, _ -> null }
 ) : SSLSocketFactory() {
   override fun getDefaultCipherSuites(): Array<String> = fallback.defaultCipherSuites
 
@@ -142,7 +144,7 @@ internal class OriginSocketFactory(
     val expectedGeneration = synchronized(lock) { generation(origin) }
     // KeyChain may wait on another process. Neither other hosts nor certificate removal should
     // wait for that work; reject its result if the identity changed while it was being resolved.
-    val selected = factory(origin)
+    val selected = direct(origin, socket) ?: factory(origin)
     return synchronized(lock) {
       if (generation(origin) !== expectedGeneration) {
         throw IOException("Certificate selection changed. Try again.")

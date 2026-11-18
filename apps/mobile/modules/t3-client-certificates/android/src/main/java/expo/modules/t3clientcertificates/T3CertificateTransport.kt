@@ -6,6 +6,7 @@ import android.security.KeyChainException
 import com.facebook.react.modules.network.CustomClientBuilder
 import com.facebook.react.modules.network.NetworkingModule
 import com.facebook.react.modules.websocket.WebSocketModule
+import expo.modules.t3clientcertificates.direct.DirectRuntime
 import expo.modules.t3clientcertificates.enroll.AndroidKeystoreBackend
 import expo.modules.t3clientcertificates.enroll.ENROLLMENT_PREFERENCES
 import expo.modules.t3clientcertificates.enroll.EnrolledUnavailable
@@ -81,6 +82,17 @@ class T3CertificateTransport private constructor(private val context: Context) {
       onChanged = ::enrollmentChanged
     )
 
+  /** The direct connection at home (A8): routes requests to a machine's LAN address when it applies. */
+  internal val direct =
+    DirectRuntime(
+      context = context,
+      enrollment = enrollment,
+      hubClient = { fileClient },
+      evictConnections = ::evictConnections,
+      restartStreams = { StreamProcess.restart(context) },
+      baseVerifier = originHostnameVerifier
+    )
+
   // The Mesh screen's list of viewer origins, read on every connection; replaced as a whole.
   @Volatile private var listedMeshOrigins: Set<String>? = null
 
@@ -98,7 +110,8 @@ class T3CertificateTransport private constructor(private val context: Context) {
           sockets[socket] = origin
         },
         lock,
-        ::generation
+        ::generation,
+        direct::socketFactoryFor
       )
     providerFactory.install()
     val customize = CustomClientBuilder { builder -> configure(builder) }
@@ -111,6 +124,7 @@ class T3CertificateTransport private constructor(private val context: Context) {
         .followRedirects(false)
         .followSslRedirects(false)
         .build()
+    direct.start()
   }
 
   internal fun generation(origin: String): Any = generations.generation(origin)
@@ -181,6 +195,7 @@ class T3CertificateTransport private constructor(private val context: Context) {
 
   /** The enrolled identity changed: every connection may hold the old one. */
   private fun enrollmentChanged(identityChanged: Boolean) {
+    direct.enrollmentChanged(identityChanged)
     if (identityChanged) {
       dropAllConnections()
       (meshOrigins() + MESH_HUB_ORIGIN).forEach { originChanged?.invoke(it) }
@@ -306,10 +321,12 @@ class T3CertificateTransport private constructor(private val context: Context) {
   }
 
   private fun configure(builder: OkHttpClient.Builder): OkHttpClient.Builder =
-    builder
-      .sslSocketFactory(socketFactory, trust)
-      .hostnameVerifier(originHostnameVerifier)
-      .connectionPool(connectionPool)
+    direct.configure(
+      builder
+        .sslSocketFactory(socketFactory, trust)
+        .hostnameVerifier(direct.hostnameVerifier)
+        .connectionPool(connectionPool)
+    )
 
   companion object {
     private const val RENEW_TIMEOUT_SECONDS = 120L

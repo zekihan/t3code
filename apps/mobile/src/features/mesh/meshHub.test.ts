@@ -154,3 +154,26 @@ it("makes no fleet request without a certificate and reports refusals and bad an
     await fetchMeshFleet({ fetch: respond(200, { machines: "x" }), hasCertificate: () => true }),
   ).toEqual({ kind: "unavailable", message: "The hub's answer was not a fleet status." });
 });
+
+it("tells the direct path about a hub contact only after a usable answer", async () => {
+  const onContact = vi.fn();
+  await fetchMeshMachines({
+    fetch: respond(200, { machines: [arch] }),
+    hasCertificate: () => true,
+    onContact,
+  });
+  expect(onContact).toHaveBeenCalledTimes(1);
+  await fetchMeshFleet({
+    fetch: respond(200, { caller: { path: "LAN" }, machines: [arch] }),
+    hasCertificate: () => true,
+    onContact,
+  });
+  expect(onContact).toHaveBeenCalledTimes(2);
+
+  for (const failing of [respond(403), respond(502), respond(200, { error: "x" })]) {
+    await fetchMeshMachines({ fetch: failing, hasCertificate: () => true, onContact });
+    await fetchMeshFleet({ fetch: failing, hasCertificate: () => true, onContact });
+  }
+  await fetchMeshMachines({ fetch: respond(200), hasCertificate: () => false, onContact });
+  expect(onContact).toHaveBeenCalledTimes(2);
+});
