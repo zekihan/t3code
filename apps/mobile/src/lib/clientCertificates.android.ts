@@ -12,6 +12,9 @@ interface CertificateModule {
   getCertificateInfo(url: string): Promise<ClientCertificateStatus | null>;
   choose(url: string): Promise<string | null>;
   remove(url: string): Promise<void>;
+  assignMeshAlias(url: string, alias: string): Promise<boolean>;
+  releaseMeshAlias(url: string): Promise<boolean>;
+  getMeshAliasOrigins(): string[];
   createTransfer(url: string): string;
   transfer(
     id: string,
@@ -57,6 +60,21 @@ export const removeClientCertificate = (url: string): Promise<void> => {
     return Promise.reject(new Error("Client certificates require the Android custom build."));
   return native.remove(url);
 };
+/** Gives `url`'s origin `alias` unless it has an alias the person chose. False when it has one. */
+export const assignMeshClientCertificate = (url: string, alias: string): Promise<boolean> => {
+  if (!native)
+    return Promise.reject(new Error("Client certificates require the Android custom build."));
+  return native.assignMeshAlias(url, alias);
+};
+/** Removes the alias the Mesh screen assigned to `url`'s origin; true when one was removed. */
+export const releaseMeshClientCertificate = (url: string): Promise<boolean> => {
+  if (!native)
+    return Promise.reject(new Error("Client certificates require the Android custom build."));
+  return native.releaseMeshAlias(url);
+};
+/** Origins whose alias the Mesh screen assigned. */
+export const meshClientCertificateOrigins = (): readonly string[] =>
+  native?.getMeshAliasOrigins() ?? [];
 
 /** Returns null for ordinary destinations; callers retain their existing Expo transfer path. */
 export async function transferWithClientCertificate(
