@@ -1,6 +1,6 @@
 import { expect, it } from "vite-plus/test";
 
-import { meshViewerOrigin } from "./meshViewerUrl";
+import { meshViewerOrigin, meshViewerOriginOf } from "./meshViewerUrl";
 
 it("accepts exactly the machine's own viewer origin", () => {
   expect(meshViewerOrigin("z-arch", "https://t3.z-arch.mesh.noqer.com")).toBe(
@@ -68,4 +68,24 @@ it("refuses values that are not strings", () => {
   expect(meshViewerOrigin("z-arch", undefined)).toBeNull();
   expect(meshViewerOrigin("z-arch", 7)).toBeNull();
   expect(meshViewerOrigin(null, "https://t3.z-arch.mesh.noqer.com")).toBeNull();
+});
+
+it("finds the origin of an environment on a mesh viewer host", () => {
+  expect(meshViewerOriginOf("https://t3.z-arch.mesh.noqer.com")).toBe(
+    "https://t3.z-arch.mesh.noqer.com",
+  );
+  expect(meshViewerOriginOf("https://t3.z-arch.mesh.noqer.com/some/path?x=1")).toBe(
+    "https://t3.z-arch.mesh.noqer.com",
+  );
+});
+
+it.each([
+  "http://t3.z-arch.mesh.noqer.com",
+  "https://z-arch.mesh.noqer.com",
+  "https://t3.z-arch.mesh.noqer.com.evil.example",
+  "https://evil.example/t3.z-arch.mesh.noqer.com",
+  "https://t3.a.b.mesh.noqer.com",
+  "not a url",
+])("does not treat %s as a mesh viewer host", (url) => {
+  expect(meshViewerOriginOf(url)).toBeNull();
 });
