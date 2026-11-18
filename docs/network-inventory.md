@@ -119,3 +119,36 @@ installed as a user CA, client identity installed into KeyChain from a PKCS#12):
   without an app restart. The expiry warning goes away for the 200-day certificate.
 - Not yet exercised: chat, attachments, media and the leased WebView pages. The isolated server
   had no project.
+
+## Emulator verification, device checks (2026-11-18)
+
+Release build of `stack/a1` (x86_64) on the Pixel 8 API 37 emulator, against an isolated `t3 serve`
+behind Caddy with `client_auth require_and_verify` on `https://10.0.2.2:8443` (new test CA as a user
+CA, EC P-256 client identities `a1-short` with 20 days and `a1-long` with 200 days in KeyChain).
+Evidence is Caddy's `client_common_name` per request and its handshake errors.
+
+| Check | Result |
+| --- | --- |
+| Pair, project list, reconnect after `am force-stop`, cold start | pass: `oauth/token`, environment, snapshot and `/ws` (101) all carry the identity's CN; the project appears in New thread |
+| Chat round trip (Claude Haiku 5.5, "reply with OK") | pass; a second message with a PDF attached also answered |
+| Attachment upload (image from the photo picker, PDF from the file picker) | pass: `POST /api/attachments/upload` with the CN; the sent image renders |
+| Attachment download and open | pass: image viewer, "Save image" wrote `Pictures/T3 Code/25.png` (634347 bytes, identical size), PDF chip opens the PDF viewer |
+| File viewer: image, PDF, video (poster frame and playback 0:00 to 0:04), audio (`.ogg`, AudioTrack started, 0:01/0:05), HTML | pass; every fetch is `okhttp` or `Dalvik` with the CN (workspace-file-exact, media-file-exact, workspace-file assets) |
+| Markdown with a block image and an inline image on a text line | pass (preview mode; both load, the inline one through the leased local file) |
+| No WebView presents the certificate | pass: no request with a Chromium user agent reached the app layer; a probe page loaded by the leased HTML path (an `img` and a `fetch` to `https://10.0.2.2:8443`) caused exactly two `client didn't provide a certificate` handshake failures at the proxy and no logged request; the page itself loaded from the local file |
+| Device stream and browser preview | the entry points are hidden; the `.../devices` deep link opens and closes at once (no device sessions, no WebView, no stream requests). The `.../browser` deep link sat on an endless spinner: fixed (see below). The "Stream unavailable" view was not reached, because it needs a thread with a live device or browser session |
+| Remove certificate, then re-select | pass: the connection fails at once (`client didn't provide a certificate` in Caddy) and recovers on selecting a certificate, with the new CN |
+| Expiry warning | pass: "The selected certificate expires in 20 days." in the add form and the environment settings; absent for the 200-day certificate |
+
+Not covered: a stream or MCP app "unavailable" view (needs server-side device or MCP app sessions);
+audio and HTML previews from inside a thread card (only the file viewer was exercised).
+
+Bug found: `useThreadServerBrowserTabs` returned `loaded: false` forever once streams were disabled,
+so the browser route (reachable by deep link) never closed and showed a spinner. Fixed in
+`fixup! Support Android client certificates` (`91320b9516`), with a gate test.
+
+Harness notes: another build on the host saturated it twice and the emulator died; it reloads the old
+`default_boot` snapshot, which drops the installed CA, KeyChain identities and APK. Save a snapshot
+after setting up (`adb emu avd snapshot save default_boot`). A re-imported identity loses the app's key
+grant, and the environment then retries forever with "did not answer"; selecting the certificate again
+fixes it.
