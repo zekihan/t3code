@@ -24,6 +24,9 @@ internal fun unhex(text: String) = text.decodeHex().toByteArray()
 
 internal const val DAY = 24L * 60 * 60 * 1000
 
+internal const val CLIENT_AUTH = "1.3.6.1.5.5.7.3.2"
+internal const val SERVER_AUTH = "1.3.6.1.5.5.7.3.1"
+
 /** 2026-11-18T12:00:00Z, inside every certificate the tests issue unless a test says otherwise. */
 internal const val NOW = 1_795_003_200_000L
 
@@ -152,13 +155,18 @@ internal class TestCa(private val name: String = "test clients CA") {
 
   val certificatePem: String = pem("CERTIFICATE", certificate.encoded)
 
-  /** A device certificate: empty subject, the URIs (and any DNS names) as a critical SAN, client auth. */
+  /**
+   * A certificate: empty subject, the URIs (and any DNS names) as a critical SAN, and [usages] as
+   * the extended key usage (client auth for a device; an agent adds server auth).
+   */
+  @Suppress("LongParameterList")
   fun issue(
     publicKey: PublicKey,
     uris: List<String>,
     dns: List<String> = emptyList(),
     notBefore: Long = NOW - DAY,
-    notAfter: Long = NOW + 365 * DAY
+    notAfter: Long = NOW + 365 * DAY,
+    usages: List<String> = listOf(CLIENT_AUTH)
   ): X509Certificate {
     val names =
       uris.map { Der.contextPrimitive(6, it.toByteArray()) } +
@@ -171,9 +179,14 @@ internal class TestCa(private val name: String = "test clients CA") {
       notAfter = notAfter,
       extensions =
         listOf(
-          extension("2.5.29.17", true, Der.sequence(*names.toTypedArray())),
-          extension("2.5.29.37", false, Der.sequence(Der.oid("1.3.6.1.5.5.7.3.2")))
-        )
+          extension("2.5.29.17", true, Der.sequence(*names.toTypedArray()))
+        ) +
+          if (usages.isEmpty()) {
+            emptyList()
+          } else {
+            val oids = usages.map { Der.oid(it) }.toTypedArray()
+            listOf(extension("2.5.29.37", false, Der.sequence(*oids)))
+          }
     )
   }
 

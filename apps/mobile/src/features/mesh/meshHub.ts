@@ -2,6 +2,7 @@ import {
   clientCertificatesAvailable,
   selectedClientCertificate,
 } from "../../lib/clientCertificates";
+import { notifyHubContacted } from "./meshDirect";
 import { parseMeshFleet, type MeshFleet } from "./meshFleet";
 import { parseMeshMachines, type MeshMachine } from "./meshMachines";
 import { MESH_FLEET_URL, MESH_HUB_URL, MESH_MACHINES_URL } from "./meshViewerUrl";
@@ -23,6 +24,8 @@ export interface MeshFetchDeps {
   readonly timeoutMs?: number;
   /** A monotonic clock in milliseconds; `performance.now` by default. */
   readonly now?: () => number;
+  /** Called after the hub answered with a usable answer; refreshes the direct path's trust. */
+  readonly onContact?: () => void;
 }
 
 type HubFailure = Exclude<MeshFetchResult, { kind: "ok" }>;
@@ -59,9 +62,10 @@ async function getFromHub<T>(
       return { kind: "unavailable", message: `The hub answered HTTP ${response.status}.` };
     }
     const value = parse(await response.json());
-    return value === null
-      ? { kind: "unavailable", message: notAnAnswer }
-      : { kind: "ok", value, rttMs };
+    if (value === null) return { kind: "unavailable", message: notAnAnswer };
+    // Every hub contact refreshes the trust the direct connection to the machines depends on.
+    (deps.onContact ?? notifyHubContacted)();
+    return { kind: "ok", value, rttMs };
   } catch (error) {
     return {
       kind: "unavailable",
