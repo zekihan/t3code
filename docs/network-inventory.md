@@ -44,8 +44,8 @@ through `transferWithClientCertificate` (a native streaming download into an app
 | HTML render (inline row and fullscreen) | Chromium WebView; the page is downloaded through the certificate transport and the WebView loads the local file | supports (page leased; the WebView never holds the certificate) | `src/features/threads/HtmlRenderWebView.tsx:87`, `src/features/mesh/useCertificateLocalUri.ts` |
 | HTML, SVG and linked-document preview in the file viewer and attachment viewer | Same as above | supports (leased) | `src/features/files/WorkspaceFileWebPreview.tsx:36` |
 | MCP apps (inline and fullscreen) | Chromium WebView with an inline outer page that frames the environment asset URL | disabled for an origin that has a certificate; shows "App unavailable" | `src/features/threads/McpAppWebView.tsx:165,497`, `src/features/mesh/CertificateSurfaceState.tsx` |
-| Device stream | Chromium WebView script connecting to the server | disabled in the fork on Android (flag plus component gate) | `src/features/mesh/streamSurfaces.android.ts:6`, `src/features/devices/DeviceStreamWebView.tsx:41`, `src/features/devices/threadDevicePreviews.ts:6` |
-| Browser preview stream (route, tablet inspector, floating player) | Chromium WebView script connecting to the server | disabled in the fork on Android (flag plus component gate); the access ticket hook is behind the gate | `src/features/browser/PreviewStreamWebView.tsx:123`, `src/state/preview.ts:133` |
+| Device stream | Chromium WebView script in the `:stream` process | supports, from the `:stream` process only (A3); cert presented only to the environment origin | `modules/t3-client-certificates/android/src/main/java/expo/modules/t3clientcertificates/stream/StreamPolicy.kt`, `src/features/mesh/streamWebView.android.tsx`, `src/features/devices/DeviceStreamWebView.tsx` |
+| Browser preview stream (route, tablet inspector, floating player) | Chromium WebView script in the `:stream` process | supports, from the `:stream` process only (A3) | `stream/StreamSession.kt`, `src/features/mesh/streamWebView.android.tsx`, `src/features/browser/PreviewStreamWebView.tsx` |
 | Inline markdown images (images that share a line with text) | `react-native-enriched-markdown` `ImageSpan` through `ImageDownloader`, which owns a private `OkHttpClient` | supports (leased local file handed to the native view in place of the URL) | `node_modules/react-native-enriched-markdown/android/src/main/java/com/swmansion/enriched/markdown/spans/ImageSpan.kt:71,128`, `.../utils/text/ImageDownloader.kt:28`; `src/native/useMarkdownImageSource.ts:44,61`, `src/features/mesh/nativeMarkdownImageUri.ts` |
 
 ### Why the HTML and MCP surfaces differ
@@ -145,10 +145,33 @@ audio and HTML previews from inside a thread card (only the file viewer was exer
 
 Bug found: `useThreadServerBrowserTabs` returned `loaded: false` forever once streams were disabled,
 so the browser route (reachable by deep link) never closed and showed a spinner. Fixed in
-`fixup! Support Android client certificates` (`91320b9516`), with a gate test.
+the "Support Android client certificates" commit, with a gate test.
 
 Harness notes: another build on the host saturated it twice and the emulator died; it reloads the old
 `default_boot` snapshot, which drops the installed CA, KeyChain identities and APK. Save a snapshot
 after setting up (`adb emu avd snapshot save default_boot`). A re-imported identity loses the app's key
 grant, and the environment then retries forever with "did not answer"; selecting the certificate again
 fixes it.
+
+## Emulator verification, A3 stream process (2026-11-18)
+
+Same harness, release build of the A3 stack. The isolated server had device support on, so the
+device stream mirrored the emulator itself.
+
+| Check | Result |
+| --- | --- |
+| No `:stream` process before a stream opens; present after, with `app_webview_stream`; no React Native or Expo in its log | pass |
+| Browser preview stream | pass: frames render; `/.well-known/t3/environment` and `/api/preview-stream/ws` (101) arrive with a Chromium user agent and the CN |
+| Device stream | pass: `/api/device-hub/...` requests and WebSocket (101) with the CN |
+| A main-process WebView after a stream used the origin | pass: still no certificate (handshake failures only) |
+| Alias change with a stream open | pass: the `:stream` pid changes, the stream recovers, later requests carry the new CN |
+| Touch, keyboard, floating player, Reconnect overlay | pass |
+| Killing the `:stream` process; display size and dark-mode changes | pass: one automatic retry, then Reconnect; no crash |
+
+Bugs found and fixed before this run passed: Metro resolved the generic `streamWebView.ts` before
+`streamWebView.android.tsx` (the page ran in the app's WebView); Chromium cancelled the stream
+WebSocket before any certificate decision (fixed by the priming request); the surface host token was
+not ready on first attach. A lost KeyChain grant now shows "The saved certificate is no longer
+available. Select it again." on the environment row with a picker, instead of retrying silently.
+
+Not covered: rotation (the app is portrait-only on phones), a real phone and the mesh viewer host.

@@ -106,15 +106,20 @@ the owner's own devices. It builds on the
   [network-inventory.md](network-inventory.md)). In the main process every WebView
   cancels certificate requests.
 - **Stream process.** The device stream and the browser preview stream run a script
-  inside the WebView that connects to the T3 server. They move into a native
-  Activity in a separate `:stream` process with its own WebView data directory
-  (`WebView.setDataDirectorySuffix`), with commands and messages bridged to the app
-  through a bound service. That process answers a certificate request only for the
-  environment's exact origin, with its alias, and cancels all others. Changing the
-  alias kills the process. `MainApplication.onCreate` also runs in `:stream`, so it
-  skips React Native and Expo start-up there and calls `setDataDirectorySuffix`
-  before anything touches WebView. This is the largest rebase surface, so it is
-  its own milestone, A3; until then the two streams are disabled.
+  inside the WebView that connects to the T3 server. That WebView lives in a separate
+  `:stream` process with its own WebView data directory
+  (`WebView.setDataDirectorySuffix`): a bound `StreamService` there owns it and draws
+  it into the app's layout through `SurfaceControlViewHost` (API 30 and newer; older
+  versions show the streams as unavailable), because the browser preview is embedded
+  in the tablet inspector and the floating player, where an Activity cannot go.
+  Commands and page messages cross a Messenger. That process answers a certificate
+  request only for the environment's exact origin, with its alias, and cancels all
+  others. Chromium cancels a WebSocket handshake that needs a client certificate
+  before it has a decision for the origin, so each session first loads a small page
+  that fetches `/.well-known/t3/environment` from the origin. Changing the alias
+  kills the process. `MainApplication.onCreate` also runs in `:stream`, so it skips
+  React Native, Expo and the transport there and calls `setDataDirectorySuffix`
+  before anything touches WebView. This is the largest rebase surface (milestone A3).
 - **Per-origin identity.** nickypro's transport stores the alias per exact origin
   and keeps OkHttp from coalescing connections across hosts; the fork keeps both.
   T3 credentials stay scoped to their environment.
