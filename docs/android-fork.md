@@ -521,8 +521,9 @@ directly.
 | A7 | Item 4: Keystore enrollment | Both devices enroll with tokens under the deployed policy, their keys are non-exportable, their identities reach only `mesh-*` hosts and replace the KeyChain identity there, the hub logs the enrolled URI for both a chat socket and a stream, and a forced renewal works; a token for one device cannot enroll the other; a wrong-kind token, a replayed token and a disabled identity are refused; a superseded leaf is refused on viewer hosts and the API; a lost renewal reply recovers by re-enrollment, after which the old leaf is refused on the direct path at once; the renewal endpoint refuses a KeyChain identity; requests from the hub ServiceAccount are denied for `z-phone`, for agent and device URIs together, for a device with `server auth`, with an extra DNS SAN, and with `isCA` |
 | A8 | Item 5: direct connection at home | With the hub scaled to zero, the phone at home chats with z-arch directly and opens a device stream there, also after a cold start; a device renewed while z-mac stayed disconnected from before the renewal until after the hub was scaled to zero still reaches z-mac directly with its previous leaf; a direct server that performs a POST and withholds its response causes no second execution through the viewer host; away it uses the viewer host and makes no direct attempt; the previous key is deleted a week after renewal; a stalled TLS handshake and a peer that completes TLS but never answers both fall back within the deadlines; unpaired HTTP and WebSocket requests on the direct path match the viewer host; blocking the enrolled leaf, removing the device from the rule, a superseded leaf, leaf expiry and cache expiry each close an open WebSocket or refuse the session; an enrolled device not in the rule, the KeyChain identity and a wrong `Host` are refused; the app refuses an agent with the wrong identity or a blocked leaf; a CA rotation reaches the phone; an agent on a foreign network matching `homeCIDRs` during a hub outage does not open the listener (integration test, as in M3) |
 
-## Open decisions
+## Decisions
 
-- Whether to do item 4 at all, given the approver-policy widening it needs. Decided
-  after A5. Item 5 depends on it.
-- Whether to do item 5, depending on how often the cluster is down while home.
+- 2026-11-18, after A5: items 4 and 5 go ahead (A7, then A8). The approver-policy
+  widening is accepted: the enumerated `device-*-mesh` identities only, client auth,
+  reaching only `mesh-*` hosts.
+- 2026-11-18: item 3 (A6) is skipped for now, even once upstream PR #38045 lands.
