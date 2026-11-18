@@ -37,6 +37,7 @@ it("explains every reason the viewer host is used, except a device that is not e
     "no-route",
     "route-expired",
     "away",
+    "local-network-denied",
     "probe-failed",
     "pending",
   ];
@@ -45,6 +46,12 @@ it("explains every reason the viewer host is used, except a device that is not e
   expect(new Set(lines).size).toBe(reasons.length);
   expect(describePathReason(status({ reason: "not-enrolled" }))).toBeNull();
   expect(describePathReason(status({ reason: null }))).toBeNull();
+});
+
+it("says that local network access was denied, and where to allow it", () => {
+  expect(describePathReason(status({ reason: "local-network-denied" }))).toBe(
+    "Local network access denied. Allow it in Settings.",
+  );
 });
 
 it("needs no explanation for the direct path unless it uses the previous identity", () => {

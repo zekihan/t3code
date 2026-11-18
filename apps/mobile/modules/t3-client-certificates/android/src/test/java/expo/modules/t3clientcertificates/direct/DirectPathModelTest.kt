@@ -1,6 +1,7 @@
 package expo.modules.t3clientcertificates.direct
 
 import expo.modules.t3clientcertificates.enroll.DAY
+import expo.modules.t3clientcertificates.localnet.LocalNetworkState
 import expo.modules.t3clientcertificates.enroll.NOW
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -47,6 +48,47 @@ class DirectPathModelTest {
     // Even a probe result from before cannot bring the direct path back while away.
     model.probeSucceeded("z-arch", model.epoch, IdentityKind.CURRENT, null)
     assertEquals(viewer(ViewerReason.AWAY), decision())
+  }
+
+  @Test fun withoutTheLocalNetworkPermissionThereIsNoProbeAndTheViewerHostIsUsed() {
+    ready(HubGate.HOME)
+    model.localNetworkChanged(LocalNetworkState.DENIED)
+    assertEquals(viewer(ViewerReason.LOCAL_NETWORK_DENIED), decision())
+    // With no hub answer either (a cold start), the same: no probe on a connection Android drops.
+    model.networkChanged()
+    assertEquals(viewer(ViewerReason.LOCAL_NETWORK_DENIED), decision())
+  }
+
+  @Test fun theLocalNetworkPermissionOnlyMattersWhereADirectAttemptCouldHappen() {
+    model.localNetworkChanged(LocalNetworkState.DENIED)
+    // Not enrolled, no trust, no route and away each say more than the missing permission does.
+    assertEquals(viewer(ViewerReason.NOT_ENROLLED), decision())
+    model.enrolled = true
+    assertEquals(viewer(ViewerReason.NO_TRUST), decision())
+    model.trustRefreshed(trust())
+    assertEquals(viewer(ViewerReason.NO_ROUTE), decision())
+    model.hubAnswered(HubGate.AWAY, mapOf("z-arch" to route))
+    assertEquals(viewer(ViewerReason.AWAY), decision())
+  }
+
+  @Test fun aGrantIsAnInputThatBringsTheProbeBackAndAGrantNotRequiredIsNoBlock() {
+    ready(HubGate.HOME)
+    model.localNetworkChanged(LocalNetworkState.DENIED)
+    model.localNetworkChanged(LocalNetworkState.GRANTED)
+    assertEquals(PathDecision.Probe, decision())
+    model.localNetworkChanged(LocalNetworkState.NOT_REQUIRED)
+    assertEquals(PathDecision.Probe, decision())
+  }
+
+  @Test fun takingThePermissionAwayDropsAPassedProbe() {
+    ready(HubGate.HOME)
+    model.probeSucceeded("z-arch", model.epoch, IdentityKind.CURRENT, "fp")
+    assertEquals(PathDecision.Direct(IdentityKind.CURRENT), decision())
+    model.localNetworkChanged(LocalNetworkState.DENIED)
+    assertEquals(viewer(ViewerReason.LOCAL_NETWORK_DENIED), decision())
+    model.localNetworkChanged(LocalNetworkState.GRANTED)
+    // The old result belongs to the time before the change; the machine is asked again.
+    assertEquals(PathDecision.Probe, decision())
   }
 
   @Test fun theHubSayingHomeProbesOnceAndAPassedProbeIsTheDirectPath() {

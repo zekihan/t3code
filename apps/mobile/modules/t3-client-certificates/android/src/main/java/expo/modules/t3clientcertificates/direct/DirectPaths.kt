@@ -1,6 +1,7 @@
 package expo.modules.t3clientcertificates.direct
 
 import expo.modules.t3clientcertificates.enroll.EnrolledMaterial
+import expo.modules.t3clientcertificates.localnet.LocalNetworkState
 import expo.modules.t3clientcertificates.stream.DirectStream
 import expo.modules.t3clientcertificates.stream.StreamEnrolledIdentity
 import java.io.IOException
@@ -92,6 +93,8 @@ internal class DirectPaths(
   private val limits: ProxyLimits = ProxyLimits(),
   /** Where a route's address goes: the LAN address by default; tests dial a local server. */
   private val addressOf: (String) -> InetAddress? = ::parseLanAddress,
+  /** Whether Android lets the app reach LAN addresses; the path model never probes without it. */
+  private val localNetwork: () -> LocalNetworkState = { LocalNetworkState.NOT_REQUIRED },
   private val log: (String) -> Unit = {},
   private val onChange: (PathChange) -> Unit = {},
   /** Called when the verified listener's checks or a direct failure need the stream process ended. */
@@ -140,7 +143,10 @@ internal class DirectPaths(
   private var expiry: ScheduledFuture<*>? = null
 
   init {
-    lock.withLock { model.restore(store.load()) }
+    lock.withLock {
+      model.restore(store.load())
+      model.localNetworkChanged(localNetwork())
+    }
   }
 
   // ---- inputs ----
@@ -154,6 +160,20 @@ internal class DirectPaths(
   /** Tells the path state the hub was just contacted by the app: refresh trust and routes. */
   fun refreshHub(force: Boolean) {
     lock.withLock { startHubContactLocked(force) }
+  }
+
+  /**
+   * The local network permission may have changed (the prompt was answered, or Settings was used).
+   * A grant brings the hub contact and the probes back at once; they were skipped, or timed out,
+   * while the platform dropped the packets.
+   */
+  fun refreshLocalNetwork() {
+    val next = localNetwork()
+    val before = lock.withLock { model.localNetwork }
+    mutate { model.localNetworkChanged(next) }
+    if (before == LocalNetworkState.DENIED && next != LocalNetworkState.DENIED) {
+      refreshHub(force = true)
+    }
   }
 
   /** The enrolled identity changed: a machine may accept or refuse the new one. */

@@ -2,6 +2,7 @@ import { useIsFocused } from "@react-navigation/native";
 import { View } from "react-native";
 
 import { AppText as Text } from "../../components/ui/AppText";
+import { Button } from "../../components/ui/Button";
 import { SettingsSection } from "../settings/components/SettingsSection";
 import type { DirectStatus } from "./meshDirect.types";
 import {
@@ -18,6 +19,7 @@ import {
 } from "./meshFleet";
 import { meshViewerOriginOf } from "./meshViewerUrl";
 import { problemDetail } from "./meshProblem";
+import { useLocalNetworkAccess } from "./useLocalNetworkAccess";
 import { useMeshDirect } from "./useMeshDirect";
 import { useMeshFleet, type MeshFleetState } from "./useMeshFleet";
 
@@ -31,7 +33,10 @@ export function machineAtOrigin(state: MeshFleetState, origin: string): MeshFlee
  * A certificate or authorization failure on the direct path shows here even while the viewer host
  * carries the traffic.
  */
-function EnvironmentPath(props: { readonly direct: DirectStatus }) {
+function EnvironmentPath(props: {
+  readonly direct: DirectStatus;
+  readonly onOpenSettings?: () => void;
+}) {
   const { direct } = props;
   const reason = describePathReason(direct);
   const unreachable = direct.path === "viewer" ? direct.unreachable : null;
@@ -41,6 +46,13 @@ function EnvironmentPath(props: { readonly direct: DirectStatus }) {
         {`Connection path: ${describePathLabel(direct)}`}
       </Text>
       {reason ? <Text className="text-sm text-foreground-muted">{reason}</Text> : null}
+      {direct.path === "viewer" &&
+      direct.reason === "local-network-denied" &&
+      props.onOpenSettings ? (
+        <View className="flex-row">
+          <Button tone="secondary" size="compact" label="Settings" onPress={props.onOpenSettings} />
+        </View>
+      ) : null}
       {unreachable ? (
         <Text className="text-xs text-foreground-muted">{unreachable.detail}</Text>
       ) : null}
@@ -70,8 +82,9 @@ export function MeshConnectionDetailsView(props: {
   readonly state: MeshFleetState;
   readonly origin: string;
   readonly direct?: DirectStatus | null;
+  readonly onOpenSettings?: () => void;
 }) {
-  const { state, direct = null } = props;
+  const { state, direct = null, onOpenSettings } = props;
   const machine = machineAtOrigin(state, props.origin);
   if (machine === null) {
     // A missing certificate is Settings > Mesh's to explain; a refusal or outage is worth a line.
@@ -81,7 +94,7 @@ export function MeshConnectionDetailsView(props: {
     return (
       <SettingsSection title="Mesh connection">
         <View className="gap-3 p-4">
-          {direct ? <EnvironmentPath direct={direct} /> : null}
+          {direct ? <EnvironmentPath direct={direct} onOpenSettings={onOpenSettings} /> : null}
           {unavailable && state.problem ? (
             <Text className="text-sm text-foreground-muted">
               {`Connection details unavailable. ${problemDetail(state.problem)}`}
@@ -96,7 +109,7 @@ export function MeshConnectionDetailsView(props: {
   return (
     <SettingsSection title="Mesh connection">
       <View className="gap-3 p-4">
-        {direct ? <EnvironmentPath direct={direct} /> : null}
+        {direct ? <EnvironmentPath direct={direct} onOpenSettings={onOpenSettings} /> : null}
         <View className="gap-0.5">
           <Text className="text-base text-foreground">
             {machine.online ? "Tunnel up" : "Tunnel down"}
@@ -128,7 +141,15 @@ export function MeshConnectionDetailsView(props: {
 function MeshConnectionDetailsLoader(props: { readonly origin: string }) {
   const { state } = useMeshFleet({ focused: useIsFocused() });
   const direct = useMeshDirect(props.origin);
-  return <MeshConnectionDetailsView state={state} origin={props.origin} direct={direct} />;
+  const { openSettings } = useLocalNetworkAccess();
+  return (
+    <MeshConnectionDetailsView
+      state={state}
+      origin={props.origin}
+      direct={direct}
+      onOpenSettings={openSettings}
+    />
+  );
 }
 
 /**
