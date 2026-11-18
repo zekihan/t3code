@@ -163,12 +163,13 @@ class T3MeshStreamView(context: Context, appContext: AppContext) : ExpoView(cont
     val id = UUID.randomUUID().toString()
     val origin = certificateUrl?.let(::certificateOrigin)
     // The app process owns the choice; the stream process only receives it with the request.
-    val alias =
-      origin?.let { T3CertificateTransport.install(context).preferences.getString(it, null) }
+    val transport = T3CertificateTransport.install(context)
+    val alias = origin?.let { transport.aliasFor(it) }
     val request =
       OpenRequest(
         environmentUrl = certificateUrl,
         alias = alias,
+        enrolled = alias?.let { transport.enrolledStreamIdentity(it) },
         documentFile = writeDocument(id, document).path,
         baseUrl = base,
         hostToken = token,
