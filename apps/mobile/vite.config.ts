@@ -60,6 +60,8 @@ const reactTests = [
   "src/features/mesh/MeshFleetView.test.tsx",
   "src/features/mesh/MeshConnectionDetails.test.tsx",
   "src/features/mesh/useMeshFleet.test.tsx",
+  "src/features/mesh/MeshEnrollmentView.test.tsx",
+  "src/features/mesh/useMeshEnrollment.test.tsx",
 ];
 
 const sourceRoot = `${normalizePath(NodeURL.fileURLToPath(new URL("./src", import.meta.url)))}/`;

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { chooseClientCertificate, clientCertificatesAvailable } from "../../lib/clientCertificates";
 import { fetchMeshMachines, type MeshFetchResult } from "./meshHub";
 import { nativeMeshAliasApi, syncMeshAliases } from "./meshAliases";
+import { setMeshOrigins } from "./meshEnrollment";
 import type { MeshMachine } from "./meshMachines";
 import { loadCachedMeshMachines, saveCachedMeshMachines } from "./meshStore";
 import { MESH_HUB_URL } from "./meshViewerUrl";
@@ -69,6 +70,10 @@ export function useMeshMachines() {
         now: Date.now(),
       });
       void saveCachedMeshMachines(result.machines);
+      // The enrolled identity applies to the origins the hub just listed, and to no others.
+      void setMeshOrigins(result.machines.map((machine) => machine.viewerOrigin)).catch(
+        () => undefined,
+      );
       // Only a list the hub just returned may move aliases; failures leave the old ones as they are.
       await syncMeshAliases(nativeMeshAliasApi, result.machines).catch(() => undefined);
       return;

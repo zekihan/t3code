@@ -26,6 +26,8 @@ internal object StreamProtocol {
   const val SESSION = "session"
   const val ENVIRONMENT_URL = "environmentUrl"
   const val ALIAS = "alias"
+  const val KEYSTORE_ALIAS = "keystoreAlias"
+  const val CHAIN_PEM = "chainPem"
   const val DOCUMENT_FILE = "documentFile"
   const val BASE_URL = "baseUrl"
   const val HOST_TOKEN = "hostToken"
@@ -62,6 +64,8 @@ internal object StreamProtocol {
 internal class OpenRequest(
   val environmentUrl: String?,
   val alias: String?,
+  /** The Keystore alias and certificate chain when [alias] is the enrolled identity. */
+  val enrolled: StreamEnrolledIdentity?,
   val documentFile: String,
   val baseUrl: String,
   val hostToken: IBinder,
@@ -73,6 +77,8 @@ internal class OpenRequest(
     StreamProtocol.message(StreamProtocol.OPEN, session, reply) {
       putString(StreamProtocol.ENVIRONMENT_URL, environmentUrl)
       putString(StreamProtocol.ALIAS, alias)
+      putString(StreamProtocol.KEYSTORE_ALIAS, enrolled?.keystoreAlias)
+      putString(StreamProtocol.CHAIN_PEM, enrolled?.chainPem)
       putString(StreamProtocol.DOCUMENT_FILE, documentFile)
       putString(StreamProtocol.BASE_URL, baseUrl)
       putBinder(StreamProtocol.HOST_TOKEN, hostToken)
@@ -82,6 +88,12 @@ internal class OpenRequest(
     }
 
   companion object {
+    private fun enrolledFrom(data: Bundle): StreamEnrolledIdentity? {
+      val keystoreAlias = data.getString(StreamProtocol.KEYSTORE_ALIAS)
+      val chainPem = data.getString(StreamProtocol.CHAIN_PEM)
+      return keystoreAlias?.let { alias -> chainPem?.let { StreamEnrolledIdentity(alias, it) } }
+    }
+
     fun from(data: Bundle): OpenRequest? {
       val hostToken = data.getBinder(StreamProtocol.HOST_TOKEN)
       val documentFile = data.getString(StreamProtocol.DOCUMENT_FILE)
@@ -92,6 +104,7 @@ internal class OpenRequest(
         OpenRequest(
           environmentUrl = data.getString(StreamProtocol.ENVIRONMENT_URL),
           alias = data.getString(StreamProtocol.ALIAS),
+          enrolled = enrolledFrom(data),
           documentFile = documentFile,
           baseUrl = baseUrl,
           hostToken = hostToken,

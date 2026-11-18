@@ -12,7 +12,7 @@ import androidx.core.content.ContextCompat
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
-import expo.modules.t3clientcertificates.stream.StreamProcess
+import expo.modules.t3clientcertificates.enroll.isEnrolledAlias
 import java.io.File
 import java.io.IOException
 import java.util.UUID
@@ -48,15 +48,7 @@ class T3ClientCertificatesModule : Module() {
   private val keyChainChanges =
     object : BroadcastReceiver() {
       override fun onReceive(context: Context?, intent: Intent?) {
-        synchronized(lock) {
-          transport.invalidateAll()
-          sockets.keys.forEach { runCatching { it.close() } }
-          sockets.clear()
-          calls.values.forEach { it.cancel() }
-          transport.evictConnections()
-        }
-        // A WebView in the stream process may have remembered a decision for the old identity.
-        StreamProcess.restart(this@T3ClientCertificatesModule.context)
+        transport.dropAllConnections()
         sendEvent("changed", mapOf("origin" to ""))
       }
     }
@@ -66,7 +58,7 @@ class T3ClientCertificatesModule : Module() {
     Events("transferProgress", "changed", "identityProblem")
     OnCreate { create() }
     Function("getAlias") { url: String ->
-      certificateOrigin(url)?.let { preferences.getString(it, null) }
+      certificateOrigin(url)?.let { transport.aliasFor(it) }
     }
     // KeyChain blocks on another process, so the lookup runs off the main thread.
     AsyncFunction("getCertificateInfo") { url: String, promise: Promise ->
@@ -99,6 +91,8 @@ class T3ClientCertificatesModule : Module() {
     transport.identityProblem = { origin, reason ->
       sendEvent("identityProblem", mapOf("origin" to origin, "reason" to reason))
     }
+    // Enrolling, renewing or removing the enrolled identity moves the mesh origins' identity.
+    transport.originChanged = { origin -> sendEvent("changed", mapOf("origin" to origin)) }
     context.cacheDir
       .listFiles()
       ?.filter { it.name.startsWith("t3-mtls-media-") }
@@ -121,6 +115,7 @@ class T3ClientCertificatesModule : Module() {
   private fun destroy() {
     context.unregisterReceiver(keyChainChanges)
     transport.identityProblem = null
+    transport.originChanged = null
     synchronized(lock) {
       destroyed = true
       transport.invalidateAll()
@@ -138,6 +133,12 @@ class T3ClientCertificatesModule : Module() {
       promise.reject(
         "CERTIFICATE_PICKER",
         "Enter an HTTPS host and open this screen in the foreground.",
+        null
+      )
+    } else if (transport.usesEnrolledIdentity(origin)) {
+      promise.reject(
+        "CERTIFICATE_PICKER",
+        "This mesh host uses the enrolled device identity. Remove the enrollment in Mesh to pick a certificate.",
         null
       )
     } else if (choosing) {
@@ -200,12 +201,14 @@ class T3ClientCertificatesModule : Module() {
   @Suppress("TooGenericExceptionCaught") // Every failure must settle the JS promise.
   private fun describe(url: String, promise: Promise) {
     try {
-      val alias = certificateOrigin(url)?.let { preferences.getString(it, null) }
+      val alias = certificateOrigin(url)?.let { transport.aliasFor(it) }
       if (alias == null) {
         promise.resolve(null)
         return
       }
-      val status = transport.inspect(alias)
+      // An enrolled alias is read from the Keystore identity; KeyChain is not asked about it.
+      val enrolled = isEnrolledAlias(alias)
+      val status = if (enrolled) transport.inspectEnrolled() else transport.inspect(alias)
       promise.resolve(mapOf("state" to status.state, "notAfter" to status.notAfter))
     } catch (error: Exception) {
       promise.reject("CERTIFICATE_UNAVAILABLE", error.message, error)
@@ -272,7 +275,7 @@ class T3ClientCertificatesModule : Module() {
   private fun createTransfer(url: String): String {
     val origin = requireNotNull(certificateOrigin(url)) { "HTTPS URL required" }
     return synchronized(lock) {
-      check(preferences.contains(origin)) { "No client certificate selected for this host" }
+      check(transport.aliasFor(origin) != null) { "No client certificate selected for this host" }
       UUID.randomUUID().toString().also { id ->
         transfers[id] = Transfer(url, origin, transport.generation(origin))
       }
@@ -303,7 +306,7 @@ class T3ClientCertificatesModule : Module() {
       if (upload) request.post(progressBody(id, target, contentType))
       val call =
         synchronized(lock) {
-          check(preferences.contains(transfer.origin)) {
+          check(transport.aliasFor(transfer.origin) != null) {
             "Certificate selection changed. Try again."
           }
           check(transfers[id] === transfer) { "Transfer cancelled" }
@@ -389,18 +392,5 @@ class T3ClientCertificatesModule : Module() {
     }
   }
 
-  private fun retire(origin: String) {
-    transport.invalidate(origin)
-    calls.values
-      .filter { certificateOrigin(it.request().url.toString()) == origin }
-      .forEach { it.cancel() }
-    sockets.entries
-      .filter { it.value == origin }
-      .forEach {
-        runCatching { it.key.close() }
-        sockets.remove(it.key)
-      }
-    transport.evictConnections()
-    StreamProcess.restart(context)
-  }
+  private fun retire(origin: String) = transport.retire(origin)
 }
