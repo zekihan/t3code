@@ -1,4 +1,9 @@
 {
   "platforms": ["android"],
-  "android": { "modules": ["expo.modules.t3clientcertificates.T3ClientCertificatesModule"] }
+  "android": {
+    "modules": [
+      "expo.modules.t3clientcertificates.T3ClientCertificatesModule",
+      "expo.modules.t3clientcertificates.stream.T3MeshStreamModule"
+    ]
+  }
 }

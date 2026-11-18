@@ -12,6 +12,7 @@ import androidx.core.content.ContextCompat
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import expo.modules.t3clientcertificates.stream.StreamProcess
 import java.io.File
 import java.io.IOException
 import java.util.UUID
@@ -54,6 +55,8 @@ class T3ClientCertificatesModule : Module() {
           calls.values.forEach { it.cancel() }
           transport.evictConnections()
         }
+        // A WebView in the stream process may have remembered a decision for the old identity.
+        StreamProcess.restart(this@T3ClientCertificatesModule.context)
         sendEvent("changed", mapOf("origin" to ""))
       }
     }
@@ -343,5 +346,6 @@ class T3ClientCertificatesModule : Module() {
         sockets.remove(it.key)
       }
     transport.evictConnections()
+    StreamProcess.restart(context)
   }
 }
