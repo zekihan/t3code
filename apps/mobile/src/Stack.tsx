@@ -93,6 +93,7 @@ import { SettingsClientStorageRouteScreen } from "./features/settings/SettingsCl
 import { SettingsDiagnosticsRouteScreen } from "./features/diagnostics/SettingsDiagnosticsRouteScreen";
 import { SettingsProviderAccountsRouteScreen } from "./features/settings/SettingsProviderAccountsRouteScreen";
 import { SettingsAuthRouteScreen } from "./features/settings/SettingsAuthRouteScreen";
+import { MeshRouteScreen } from "./features/mesh/MeshRouteScreen";
 import { SettingsEnvironmentDetailRouteScreen } from "./features/settings/SettingsEnvironmentDetailRouteScreen";
 import { SettingsEnvironmentsRouteScreen } from "./features/settings/SettingsEnvironmentsRouteScreen";
 import { SettingsFollowUpRouteScreen } from "./features/settings/SettingsFollowUpRouteScreen";
@@ -171,6 +172,11 @@ const SETTINGS_SCREENS = {
     screen: SettingsEnvironmentsRouteScreen,
     linking: "settings/environments",
     options: settingsPage("Environments"),
+  }),
+  SettingsMesh: createNativeStackScreen({
+    screen: MeshRouteScreen,
+    linking: "settings/mesh",
+    options: settingsPage("Mesh"),
   }),
   SettingsEnvironmentDetail: createNativeStackScreen({
     screen: SettingsEnvironmentDetailRouteScreen,
