@@ -179,14 +179,22 @@ the owner's own devices. It builds on the
 - **Deploy order.** The hub parses its config with unknown fields rejected, so the
   hub release that understands `api.identities` ships first and the chart change
   after it. Rolling the hub back past that release requires reverting the chart
-  first. The Gatus `canary-unauthorized` check gains `hub.mesh.noqer.com`.
+  first. The Gatus `canary-unauthorized` check gains `hub.mesh.noqer.com`: the
+  canary presents a valid identity outside `mesh-hub` and expects 403. The chart
+  renders `api.identities` from the `mesh-hub` policy entry, so the Traefik policy
+  and the hub list cannot drift; the Technitium record name is kept in step with the
+  chart's `hubApi.host` by hand.
 - **API admission.** The hub config's rule map accepts only
   `mesh-<svc>-<machine>` entries, so the `mesh-hub` identities are a separate
   `api.identities` field, never a rule. The hub requires the same `X-Mtls-Mesh-*`
   headers as viewer streams and applies disabled identities and blocked leaves.
 - **Filtering.** The hub returns only the machines whose `mesh-t3-<machine>` entry
   lists the caller, with name, online, last seen and viewer URL. Every `/api/v1`
-  endpoint applies the same filter.
+  endpoint applies the same filter. An admitted caller listed on no machine gets an
+  empty list, not an error. "Online" means a live tunnel session, not that T3 on the
+  machine is healthy, and the app labels it that way.
+- **Shipped.** Hub v0.1.13 (2026-11-18), homelab #140 and #141, app release
+  `+mesh.3`; paired on the phone with all three machines.
 - **App.** A "Mesh" screen lists the machines. An entry opens or pairs the
   environment at its viewer URL. Pairing itself stays manual: T3 pairing is the
   second lock and the hub never pairs on the user's behalf.
