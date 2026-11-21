@@ -83,6 +83,7 @@ function render(overrides: Partial<MeshMachinesViewProps> & { state: MeshState }
     certificateWarning: null,
     enrollment: null,
     onOpen: vi.fn(),
+    onSettings: vi.fn(),
     onPair: vi.fn(),
     onChooseCertificate: vi.fn(),
     onRetry: vi.fn(),
@@ -270,7 +271,7 @@ it("lists machines with their state, last seen time and viewer URL", () => {
   ).toEqual(["connected", "available", "connected"]);
 });
 
-it("opens a paired machine's environment and pairs the others", () => {
+it("opens a paired machine and its settings, and pairs the others", () => {
   const arch = machine("z-arch", true, NOW);
   const mac = machine("z-mac", true, NOW);
   const { container, props } = render({
@@ -279,6 +280,10 @@ it("opens a paired machine's environment and pairs the others", () => {
   });
   act(() => container.querySelector<HTMLButtonElement>('[aria-label="Open z-arch"]')!.click());
   expect(props.onOpen).toHaveBeenCalledWith("env-1");
+  act(() =>
+    container.querySelector<HTMLButtonElement>('[aria-label="Settings for z-arch"]')!.click(),
+  );
+  expect(props.onSettings).toHaveBeenCalledWith("env-1");
   expect(container.querySelector('[aria-label="Pair z-arch"]')).toBeNull();
   act(() => container.querySelector<HTMLButtonElement>('[aria-label="Pair z-mac"]')!.click());
   expect(props.onPair).toHaveBeenCalledWith(mac);

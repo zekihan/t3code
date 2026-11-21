@@ -12,6 +12,8 @@ import { RefreshControl } from "../../components/ui/RefreshControl";
 import { SegmentedControl } from "../../components/ui/SegmentedControl";
 import { clientCertificateWarning } from "../../lib/clientCertificateExpiry";
 import { useRemoteConnections } from "../../state/use-remote-environment-registry";
+import { useHomeListOptions } from "../home/home-list-options";
+import { useSelectWorkspaceTab } from "../layout/workspace/useSelectWorkspaceTab";
 import { SettingsScreen } from "../settings/components/SettingsScreen";
 import { pairedEnvironmentsByMachine } from "./meshEnvironments";
 import type { MeshMachine } from "./meshMachines";
@@ -33,6 +35,8 @@ export function MeshRouteScreen() {
   const gt = useGT();
   const m = useMessages();
   const navigation = useNavigation();
+  const selectWorkspaceTab = useSelectWorkspaceTab();
+  const { setSelectedEnvironmentId, setSelectedProjectKey } = useHomeListOptions(new Set());
   const insets = useSafeAreaInsets();
   const { connectedEnvironments, onChangeConnectionPairingUrl } = useRemoteConnections();
   const mesh = useMeshMachines();
@@ -69,7 +73,12 @@ export function MeshRouteScreen() {
     onChangeConnectionPairingUrl(machine.viewerOrigin);
     navigation.navigate("SettingsEnvironmentNew");
   };
-  const open = (environmentId: EnvironmentId) =>
+  const open = (environmentId: EnvironmentId) => {
+    setSelectedProjectKey(null);
+    setSelectedEnvironmentId(environmentId);
+    selectWorkspaceTab("threads");
+  };
+  const openSettings = (environmentId: EnvironmentId) =>
     navigation.navigate("SettingsEnvironmentDetail", { environmentId });
 
   return (
@@ -161,6 +170,7 @@ export function MeshRouteScreen() {
             }
             enrollment={enrollment.state.status}
             onOpen={open}
+            onSettings={openSettings}
             onPair={pair}
             onChooseCertificate={() => void mesh.chooseCertificate()}
             onEnroll={enrollment.state.available ? () => setScreen("device-enrollment") : undefined}

@@ -28,6 +28,7 @@ export interface MeshMachinesViewProps {
   readonly certificateWarning: string | null;
   readonly enrollment: EnrollmentStatus | null;
   readonly onOpen: (environmentId: EnvironmentId) => void;
+  readonly onSettings: (environmentId: EnvironmentId) => void;
   readonly onPair: (machine: MeshMachine) => void;
   readonly onChooseCertificate: () => void;
   /** Opens the Device tab. Offered next to the KeyChain picker when the hub has no identity for us. */
@@ -238,13 +239,22 @@ function MachinesContent(props: MeshMachinesViewProps & { readonly identityRefus
                   </Text>
                 </View>
                 {environmentId !== undefined ? (
-                  <Button
-                    tone="secondary"
-                    size="compact"
-                    label={gt("Open", { $context: "verb, opens a paired machine" })}
-                    accessibilityLabel={gt("Open {name}", { name: machine.name })}
-                    onPress={() => props.onOpen(environmentId)}
-                  />
+                  <View className="gap-2">
+                    <Button
+                      tone="secondary"
+                      size="compact"
+                      label={gt("Open", { $context: "verb, opens a paired machine" })}
+                      accessibilityLabel={gt("Open {name}", { name: machine.name })}
+                      onPress={() => props.onOpen(environmentId)}
+                    />
+                    <Button
+                      tone="text"
+                      size="compact"
+                      label={gt("Settings")}
+                      accessibilityLabel={gt("Settings for {name}", { name: machine.name })}
+                      onPress={() => props.onSettings(environmentId)}
+                    />
+                  </View>
                 ) : (
                   <Button
                     tone="primary"
