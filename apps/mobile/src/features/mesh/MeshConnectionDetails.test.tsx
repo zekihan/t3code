@@ -61,6 +61,7 @@ const machine = (overrides: Partial<MeshFleetMachine> = {}): MeshFleetMachine =>
   tunnelPath: "OCI",
   connectedSince: NOW - 2 * 3_600_000,
   alerts: [],
+  services: {},
   ...overrides,
 });
 const state = (overrides: Partial<MeshFleetState> = {}): MeshFleetState => ({
