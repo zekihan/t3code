@@ -45,7 +45,7 @@ private class FakeRouter : DirectRouter {
       it != 0
     }?.let { InetSocketAddress(InetAddress.getByName("127.0.0.1"), it) }
 
-  override fun directFailed(machine: String, error: IOException) {
+  override fun directFailed(machine: String, error: IOException, freshConnection: Boolean) {
     println(
       "DIRECT FAILED: " +
         generateSequence<Throwable>(error) { it.cause }.joinToString(" <- ") {
@@ -56,7 +56,7 @@ private class FakeRouter : DirectRouter {
         " agent=" +
         lastAgentResult
     )
-    failures += classifyFailure(error, lastAgentResult, null)
+    failures += classifyFailure(error, lastAgentResult, null, freshConnection)
     path = ActivePath.VIEWER
   }
 

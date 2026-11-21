@@ -349,7 +349,7 @@ class DirectPathsTest {
     val paths = paths()
     assertTrue(paths.awaitPath(MACHINE).direct)
     paths.unknownOutcome(MACHINE, "POST")
-    paths.directFailed(MACHINE, IOException("reset"))
+    paths.directFailed(MACHINE, IOException("reset"), freshConnection = false)
     val status = paths.status(MACHINE)
     assertFalse(status.direct)
     assertEquals(ViewerReason.PROBE_FAILED, status.reason)
@@ -403,7 +403,7 @@ class DirectPathsTest {
     val paths = paths()
     assertTrue(paths.awaitPath(MACHINE).direct)
     val address = paths.relayAddress()!!
-    paths.directFailed(MACHINE, IOException("reset"))
+    paths.directFailed(MACHINE, IOException("reset"), freshConnection = false)
     Thread.sleep(600)
     assertNull(paths.relayAddress())
     assertTrue(runCatching { Socket().connect(address, 300) }.isFailure)
@@ -504,7 +504,7 @@ class DirectPathsTest {
     val paths = paths(stored())
     assertEquals(directNow, paths.awaitPath(MACHINE))
     now += 60_000
-    paths.directFailed(MACHINE, IOException("connection reset"))
+    paths.directFailed(MACHINE, IOException("connection reset"), freshConnection = false)
     assertTrue("the decision stays while the probe runs", paths.status(MACHINE).direct)
     awaitUntil { agent.requestCount == 2 }
     awaitUntil { !paths.status(MACHINE).probing }
@@ -523,7 +523,7 @@ class DirectPathsTest {
     assertEquals(directNow, paths.awaitPath(MACHINE))
     agent.shutdown()
     now += 60_000
-    paths.directFailed(MACHINE, IOException("connection reset"))
+    paths.directFailed(MACHINE, IOException("connection reset"), freshConnection = false)
     awaitUntil { paths.status(MACHINE).reason == ViewerReason.PROBE_FAILED }
     assertEquals(viewer(ViewerReason.PROBE_FAILED), paths.awaitPath(MACHINE))
     assertEquals(FailureKind.UNREACHABLE, paths.status(MACHINE).unreachable?.kind)

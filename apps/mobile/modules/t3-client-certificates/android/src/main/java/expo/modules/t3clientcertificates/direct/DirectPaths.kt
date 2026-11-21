@@ -263,8 +263,8 @@ internal class DirectPaths(
   override fun relayAddress(): InetSocketAddress? =
     relay.port.takeIf { it != 0 }?.let { InetSocketAddress(InetAddress.getByAddress(LOOPBACK), it) }
 
-  override fun directFailed(machine: String, error: IOException) {
-    val (kind, detail) = classifyFailure(error, agentResults[machine], null)
+  override fun directFailed(machine: String, error: IOException, freshConnection: Boolean) {
+    val (kind, detail) = classifyFailure(error, agentResults[machine], null, freshConnection)
     log("direct request to $machine failed (${kind.code}): $detail")
     mutate { if (model.directBroke(machine, kind, detail)) startProbeLocked(machine) }
     if (kind.shown) relay.closeTunnels(machine)
