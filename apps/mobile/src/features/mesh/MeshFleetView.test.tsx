@@ -57,6 +57,7 @@ const machine = (name: string, overrides: Partial<MeshFleetMachine> = {}): MeshF
   tunnelPath: "LAN",
   connectedSince: NOW - (3 * HOUR + 12 * 60_000),
   alerts: [],
+  services: {},
   ...overrides,
 });
 const state = (overrides: Partial<MeshFleetState>): MeshFleetState => ({
@@ -211,5 +212,23 @@ it("keeps the last status under a failure notice", () => {
   expect(alerts[0]).toBe("Your certificate expires soon.");
   expect(alerts[1]).toContain("Showing the last status.");
   expect(view.container.textContent).toContain("z-arch");
+  view.unmount();
+});
+
+it("shows T3 unavailability only for an online machine with an unreachable service", () => {
+  const unreachable = { state: "unreachable" as const, checkedAt: NOW - 5 * 60_000 };
+  const view = render({
+    state: listed([
+      machine("down", { services: { t3: unreachable } }),
+      machine("healthy", { services: { t3: { state: "reachable", checkedAt: NOW } } }),
+      machine("absent"),
+      machine("unknown", { services: { t3: { state: "unknown", checkedAt: null } } }),
+      machine("offline", { online: false, services: { t3: unreachable } }),
+      machine("unchecked", { services: { t3: { state: "unreachable", checkedAt: null } } }),
+    ]),
+  });
+  const text = view.container.textContent ?? "";
+  expect(text.match(/T3 unavailable/g)).toHaveLength(2);
+  expect(text).toContain("T3 unavailable · Checked 5m ago");
   view.unmount();
 });

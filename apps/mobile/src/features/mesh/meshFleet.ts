@@ -6,6 +6,11 @@ import { meshViewerOrigin } from "./meshViewerUrl";
 /** Which of the hub's two entrypoints a connection came in on. */
 export type MeshPath = "LAN" | "OCI";
 
+export interface MeshServiceHealth {
+  readonly state: "reachable" | "unreachable" | "unknown";
+  readonly checkedAt: number | null;
+}
+
 export interface MeshFleetMachine {
   readonly name: string;
   /** A live tunnel session to the hub; says nothing about whether T3 itself is healthy. */
@@ -21,6 +26,7 @@ export interface MeshFleetMachine {
   /** Epoch milliseconds when the current tunnel session began, or null. */
   readonly connectedSince: number | null;
   readonly alerts: readonly string[];
+  readonly services: Readonly<Record<string, MeshServiceHealth>>;
 }
 
 export interface MeshFleet {
@@ -61,6 +67,21 @@ function parseAlerts(value: unknown): string[] {
   return alerts;
 }
 
+function parseServices(value: unknown): Record<string, MeshServiceHealth> {
+  const services: Record<string, MeshServiceHealth> = Object.create(null);
+  if (!isRecord(value)) return services;
+  for (const [name, service] of Object.entries(value)) {
+    if (!isRecord(service)) continue;
+    const { state } = service;
+    if (state !== "reachable" && state !== "unreachable" && state !== "unknown") continue;
+    if (service.checkedAt !== null && typeof service.checkedAt !== "string") continue;
+    const checkedAt = parseTime(service.checkedAt);
+    if (service.checkedAt !== null && checkedAt === null) continue;
+    services[name] = { state, checkedAt };
+  }
+  return services;
+}
+
 /**
  * The fleet in a hub response, or null when the response is not a fleet at all. An entry that is
  * malformed or whose viewer URL is not its own mesh viewer origin is dropped, and so is a
@@ -87,6 +108,7 @@ export function parseMeshFleet(payload: unknown): MeshFleet | null {
       tunnelPath: parsePath(tunnel.path),
       connectedSince: parseTime(tunnel.connectedSince),
       alerts: parseAlerts(entry.alerts),
+      services: parseServices(entry.services),
     });
   }
   return {
@@ -130,6 +152,20 @@ export function formatTunnelUptime(
       hours: String(Math.floor((elapsed % DAY) / HOUR)),
     }),
   );
+}
+
+export function formatServiceCheck(
+  checkedAt: number,
+  now: number,
+  resolve: MessageResolver = m,
+): string {
+  const elapsed = Math.max(0, now - checkedAt);
+  if (elapsed < MINUTE) return resolve(msg("Checked just now"));
+  if (elapsed < HOUR)
+    return resolve(msg("Checked {count}m ago", { count: String(Math.floor(elapsed / MINUTE)) }));
+  if (elapsed < DAY)
+    return resolve(msg("Checked {count}h ago", { count: String(Math.floor(elapsed / HOUR)) }));
+  return resolve(msg("Checked {count}d ago", { count: String(Math.floor(elapsed / DAY)) }));
 }
 
 export interface CertificateExpiry {

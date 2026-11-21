@@ -82,6 +82,7 @@
     "…"
   ],
   "caa68cb9307895d0": "Mesh-värdar använder den här identiteten i stället för certifikatet som valts i KeyChain.",
+  "56b8dd5558e4d65a": "T3 är inte tillgängligt",
   "e9a8d02ecaeeebb1": "Agent {version}",
   "7ed8b578c8a0c80e": "Okänd agentversion",
   "ec9021c581acd416": "Läser in flottan",
@@ -174,6 +175,10 @@
   "19cd661ec7cda8e6": "Uppe {minutes} min",
   "c33d4855687d0055": "Uppe {hours} h {minutes} min",
   "28bb5a1eb045b760": "Uppe {days} d {hours} h",
+  "9050531a40b475ae": "Kontrollerad nyss",
+  "1bdbcf99a47d3ff4": "Kontrollerad för {count} min sedan",
+  "b56e78ec3292a308": "Kontrollerad för {count} tim sedan",
+  "fe0ddd962369aad2": "Kontrollerad för {count} d sedan",
   "2e2d8cb13e12e2e2": "Certifikatets utgångstid okänd",
   "dd2f1895357a7f84": "Certifikatet gick nyss ut",
   "7b931b4681a5df7c": "{count, plural, one {Certifikatet gick ut för {count} timme sedan} other {Certifikatet gick ut för {count} timmar sedan}}",

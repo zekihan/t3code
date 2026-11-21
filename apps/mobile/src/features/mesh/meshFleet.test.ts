@@ -40,6 +40,7 @@ it("parses a full fleet entry and the caller's path", () => {
         tunnelPath: "LAN",
         connectedSince: Date.parse("2026-11-18T08:48:00Z"),
         alerts: ["cert-expiry", "disconnected"],
+        services: {},
       },
     ],
   });
@@ -73,12 +74,14 @@ it("reads the hub's nulls and absences as unknown", () => {
     tunnelPath: null,
     connectedSince: null,
     alerts: [],
+    services: {},
   });
   expect(fleet?.machines[1]).toMatchObject({
     tunnelPath: null,
     connectedSince: null,
     agentVersion: null,
     alerts: [],
+    services: {},
   });
   expect(parseMeshFleet({ machines: [] })).toEqual({ callerPath: null, machines: [] });
 });
@@ -191,4 +194,32 @@ it("labels the hub request as the phone's own, separate from the viewer connecti
     note: "This phone's last request to the hub; the viewer connection can use a different path.",
   });
   expect(describeHubRequest({ path: null, rttMs: 7 }).path).toBe("Hub request path: unknown");
+});
+
+it("parses service health and ignores malformed services", () => {
+  const fleet = parseMeshFleet({
+    machines: [
+      {
+        ...arch,
+        services: {
+          t3: { state: "unreachable", checkedAt: "2026-11-18T11:59:00Z" },
+          web: { state: "reachable", checkedAt: null },
+          old: { state: "unknown", checkedAt: null },
+          invalid: { state: "broken", checkedAt: null },
+          badTime: { state: "reachable", checkedAt: "bad" },
+          missingTime: { state: "reachable" },
+          badEntry: null,
+        },
+      },
+    ],
+  });
+  expect(fleet?.machines[0]?.services).toEqual({
+    t3: { state: "unreachable", checkedAt: NOW - MINUTE },
+    web: { state: "reachable", checkedAt: null },
+    old: { state: "unknown", checkedAt: null },
+  });
+  expect(parseMeshFleet({ machines: [{ ...arch, services: [] }] })?.machines[0]?.services).toEqual(
+    {},
+  );
+  expect(parseMeshFleet({ machines: [arch] })?.machines[0]?.services).toEqual({});
 });

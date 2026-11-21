@@ -82,6 +82,7 @@
     " wird hergestellt…"
   ],
   "caa68cb9307895d0": "Mesh-Hosts verwenden diese Identität statt des in KeyChain ausgewählten Zertifikats.",
+  "56b8dd5558e4d65a": "T3 nicht verfügbar",
   "e9a8d02ecaeeebb1": "Agent {version}",
   "7ed8b578c8a0c80e": "Agent-Version unbekannt",
   "ec9021c581acd416": "Flotte wird geladen",
@@ -174,6 +175,10 @@
   "19cd661ec7cda8e6": "Seit {minutes} Min. aktiv",
   "c33d4855687d0055": "Seit {hours} Std. {minutes} Min. aktiv",
   "28bb5a1eb045b760": "Seit {days} T. {hours} Std. aktiv",
+  "9050531a40b475ae": "Gerade geprüft",
+  "1bdbcf99a47d3ff4": "Vor {count} Min. geprüft",
+  "b56e78ec3292a308": "Vor {count} Std. geprüft",
+  "fe0ddd962369aad2": "Vor {count} Tagen geprüft",
   "2e2d8cb13e12e2e2": "Ablauf des Zertifikats unbekannt",
   "dd2f1895357a7f84": "Zertifikat gerade abgelaufen",
   "7b931b4681a5df7c": "{count, plural, one {Zertifikat vor {count} Stunde abgelaufen} other {Zertifikat vor {count} Stunden abgelaufen}}",

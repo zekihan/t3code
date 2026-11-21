@@ -13,6 +13,7 @@ import {
   formatAlert,
   formatCertificateExpiry,
   formatPath,
+  formatServiceCheck,
   formatTunnelUptime,
   type MeshFleetMachine,
 } from "./meshFleet";
@@ -82,6 +83,14 @@ function FleetMachineRow(props: { readonly machine: MeshFleetMachine; readonly n
             {formatLastSeen(machine.lastSeen, now, m)}
           </Text>
         )}
+        {machine.online && machine.services.t3?.state === "unreachable" ? (
+          <Text className="text-sm text-danger-foreground">
+            {gt("T3 unavailable")}
+            {machine.services.t3.checkedAt !== null
+              ? ` · ${formatServiceCheck(machine.services.t3.checkedAt, now, m)}`
+              : null}
+          </Text>
+        ) : null}
         <Text className="text-sm text-foreground-muted">
           {machine.agentVersion
             ? gt("Agent {version}", { version: machine.agentVersion })
