@@ -202,11 +202,11 @@ it("parses service health and ignores malformed services", () => {
       {
         ...arch,
         services: {
-          t3: { state: "unreachable", checkedAt: "2026-11-18T11:59:00Z" },
-          web: { state: "reachable", checkedAt: null },
-          old: { state: "unknown", checkedAt: null },
-          invalid: { state: "broken", checkedAt: null },
-          badTime: { state: "reachable", checkedAt: "bad" },
+          t3: { state: "unreachable", since: "2026-11-18T11:59:00Z" },
+          web: { state: "reachable", since: null },
+          old: { state: "unknown", since: null },
+          invalid: { state: "broken", since: null },
+          badTime: { state: "reachable", since: "bad" },
           missingTime: { state: "reachable" },
           badEntry: null,
         },
@@ -214,9 +214,9 @@ it("parses service health and ignores malformed services", () => {
     ],
   });
   expect(fleet?.machines[0]?.services).toEqual({
-    t3: { state: "unreachable", checkedAt: NOW - MINUTE },
-    web: { state: "reachable", checkedAt: null },
-    old: { state: "unknown", checkedAt: null },
+    t3: { state: "unreachable", since: NOW - MINUTE },
+    web: { state: "reachable", since: null },
+    old: { state: "unknown", since: null },
   });
   expect(parseMeshFleet({ machines: [{ ...arch, services: [] }] })?.machines[0]?.services).toEqual(
     {},
