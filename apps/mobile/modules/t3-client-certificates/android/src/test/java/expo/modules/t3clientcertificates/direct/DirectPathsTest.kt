@@ -183,7 +183,7 @@ class DirectPathsTest {
     lan = LocalNetworkState.GRANTED
     paths.refreshLocalNetwork()
     assertEquals(ActivePath(true, IdentityKind.CURRENT), paths.awaitPath(MACHINE))
-    assertTrue(fleetCalls.get() > hubBefore)
+    awaitUntil { fleetCalls.get() > hubBefore }
     assertEquals(1, agent.requestCount)
   }
 
