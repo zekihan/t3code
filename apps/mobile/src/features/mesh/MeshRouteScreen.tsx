@@ -1,4 +1,5 @@
 import { useIsFocused, useNavigation } from "@react-navigation/native";
+import { useAtomSet } from "@effect/atom-react";
 import type { EnvironmentId } from "@t3tools/contracts";
 import { useGT, useMessages } from "gt-react-native";
 import { useEffect, useState } from "react";
@@ -17,6 +18,7 @@ import { useSelectWorkspaceTab } from "../layout/workspace/useSelectWorkspaceTab
 import { SettingsScreen } from "../settings/components/SettingsScreen";
 import { pairedEnvironmentsByMachine } from "./meshEnvironments";
 import type { MeshMachine } from "./meshMachines";
+import { meshPairingOriginAtom } from "./meshPairingPrefill";
 import { MeshEnrollmentView } from "./MeshEnrollmentView";
 import { MeshFleetView } from "./MeshFleetView";
 import { MeshMachinesView } from "./MeshMachinesView";
@@ -38,7 +40,8 @@ export function MeshRouteScreen() {
   const selectWorkspaceTab = useSelectWorkspaceTab();
   const { setSelectedEnvironmentId, setSelectedProjectKey } = useHomeListOptions(new Set());
   const insets = useSafeAreaInsets();
-  const { connectedEnvironments, onChangeConnectionPairingUrl } = useRemoteConnections();
+  const { connectedEnvironments } = useRemoteConnections();
+  const setMeshPairingOrigin = useAtomSet(meshPairingOriginAtom);
   const mesh = useMeshMachines();
   const [screen, setScreen] = useState<"machines" | "fleet" | "device" | "device-enrollment">(
     "machines",
@@ -70,8 +73,8 @@ export function MeshRouteScreen() {
   };
   // Pairing stays manual: the form opens with the viewer's address and waits for the code.
   const pair = (machine: MeshMachine) => {
-    onChangeConnectionPairingUrl(machine.viewerOrigin);
-    navigation.navigate("SettingsEnvironmentNew");
+    setMeshPairingOrigin(machine.viewerOrigin);
+    navigation.navigate("SettingsEnvironmentNew", { meshPairingOrigin: machine.viewerOrigin });
   };
   const open = (environmentId: EnvironmentId) => {
     setSelectedProjectKey(null);

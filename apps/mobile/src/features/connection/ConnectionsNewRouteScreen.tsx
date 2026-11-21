@@ -25,6 +25,7 @@ import { SettingsScreen } from "../settings/components/SettingsScreen";
 import { AppText as Text, AppTextInput, type AppTextInputProps } from "../../components/ui/AppText";
 import { FrostedCutout } from "../../components/ui/FrostedCutout";
 import { ClientCertificateField } from "../mesh/ClientCertificateField";
+import { useMeshPairingPrefill } from "../mesh/meshPairingPrefill";
 import {
   explainConnectionError,
   hostOfAddress,
@@ -50,6 +51,7 @@ type ConnectionsNewRouteParams = {
   readonly routeFor?: EnvironmentId;
   /** A linked machine this app chose to pair with; its details come from app state, never the link. */
   readonly linked?: string;
+  readonly meshPairingOrigin?: string;
 };
 
 export function ConnectionsNewRouteScreen({
@@ -60,13 +62,15 @@ export function ConnectionsNewRouteScreen({
   const routePairingUrl = __DEV__ ? (params.pairingUrl?.trim() ?? "") : "";
   const known = useAtomValue(linkedEnvironmentPrefillAtom);
   const linked = known !== null && known.environmentId === params.linked ? known : null;
+  const meshPairing = useMeshPairingPrefill(params.meshPairingOrigin);
   // A new prefill link replaces whatever the form held.
   return (
     <PairingForm
-      key={`${routePairingUrl}:${linked?.environmentId ?? ""}`}
+      key={`${routePairingUrl}:${linked?.environmentId ?? ""}:${meshPairing?.origin ?? ""}`}
       routePairingUrl={routePairingUrl}
       routeFor={params.routeFor ?? linked?.environmentId}
       linked={linked}
+      meshPairing={meshPairing}
     />
   );
 }
@@ -75,10 +79,12 @@ function PairingForm({
   routePairingUrl,
   routeFor,
   linked,
+  meshPairing,
 }: {
   readonly routePairingUrl: string;
   readonly routeFor: EnvironmentId | undefined;
   readonly linked: { readonly label: string; readonly host: string | null } | null;
+  readonly meshPairing: ReturnType<typeof useMeshPairingPrefill>;
 }) {
   const gt = useGT();
   const { connectionPairingUrl, onChangeConnectionPairingUrl, onConnectPress } =
@@ -86,9 +92,12 @@ function PairingForm({
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const localNetwork = useLocalNetworkAccess();
+  const meshViewerOrigin = meshPairing?.origin ?? null;
   const [initialPairing] = useState(() => parsePairingUrl(routePairingUrl || connectionPairingUrl));
-  const [hostInput, setHostInput] = useState(linked?.host ?? initialPairing.host);
-  const [codeInput, setCodeInput] = useState(initialPairing.code);
+  const [hostInput, setHostInput] = useState(
+    meshViewerOrigin ?? linked?.host ?? initialPairing.host,
+  );
+  const [codeInput, setCodeInput] = useState(meshViewerOrigin ? "" : initialPairing.code);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   // The user's own edit or submit dismisses the dev auto-connect report.
@@ -108,7 +117,8 @@ function PairingForm({
 
   const headerIconColor = useUniwindTheme()["--color-icon"];
 
-  const connectDisabled = connecting || hostInput.trim().length === 0;
+  const connectDisabled =
+    connecting || hostInput.trim().length === 0 || (meshViewerOrigin !== null && !codeInput.trim());
 
   const clearError = () => {
     setSubmitError(null);
@@ -149,7 +159,20 @@ function PairingForm({
   };
 
   const handleQrScan = ({ data }: { readonly data: string }) => {
-    if (scannerLocked) {
+    if (scannerLocked || scanComplete) {
+      return;
+    }
+
+    if (meshPairing) {
+      const result = meshPairing.readScan(data);
+      setScanComplete(true);
+      clearError();
+      if ("code" in result) {
+        setCodeInput(result.code);
+      } else {
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        setSubmitError(result.error);
+      }
       return;
     }
 
@@ -267,6 +290,7 @@ function PairingForm({
                 keyboardType="url"
                 placeholder="192.168.1.100:3773"
                 value={hostInput}
+                editable={meshViewerOrigin === null}
                 onChangeText={handleHostChange}
               />
               <View className="ml-4 border-t border-border-subtle" />

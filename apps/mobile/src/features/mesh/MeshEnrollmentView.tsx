@@ -8,6 +8,7 @@ import { Button } from "../../components/ui/Button";
 import * as Dialog from "../../components/ui/Dialog";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { Notice } from "../../components/ui/Notice";
+import { MeshEnrollmentScanner } from "./MeshEnrollmentScanner";
 import { IDENTITY_SUGGESTIONS, identityProblem, summarizeEnrollment } from "./meshEnrollmentLogic";
 import type { MeshEnrollmentState } from "./useMeshEnrollment";
 
@@ -96,11 +97,12 @@ function EnrollmentForm(props: {
           placeholder={gt("Paste the one-time token")}
           onChangeText={setToken}
         />
+        <MeshEnrollmentScanner disabled={enrolling} onToken={setToken} />
         <Text className="text-xs text-foreground-muted">
           <T>
             Create it on the hub with{" "}
-            <Var>{`t3-mesh-hub enroll-token --device ${name || "<name>"}`}</Var>. It works once, for
-            15 minutes.
+            <Var>{`t3-mesh-hub enroll-token --device ${name || "<name>"} --qr`}</Var>. It works
+            once, for 15 minutes.
           </T>
         </Text>
       </View>

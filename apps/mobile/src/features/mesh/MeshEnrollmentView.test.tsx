@@ -35,6 +35,7 @@ vi.mock("../../components/ui/AppActivityIndicator", () => ({
 vi.mock("../../components/ui/Notice", () => ({
   Notice: ({ message }: { message: string }) => <p role="alert">{message}</p>,
 }));
+vi.mock("./MeshEnrollmentScanner", () => ({ MeshEnrollmentScanner: () => null }));
 vi.mock("../../components/ui/Dialog", () => dialog);
 vi.mock("../../components/ui/Button", () => ({
   Button: (props: {
