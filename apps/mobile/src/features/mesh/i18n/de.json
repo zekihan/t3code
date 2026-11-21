@@ -279,5 +279,6 @@
   "1d199fa991c77fdb": "Manuelle Direktprüfung",
   "496fe41329b84614": "Direkte Verbindung jetzt testen",
   "135b3243e0a44839": "Letzte Entscheidungen zur direkten Verbindung",
-  "ad1600c20fbcbdc6": "Mesh-Optionen"
+  "ad1600c20fbcbdc6": "Mesh-Optionen",
+  "bb10e11c59802720": "Die Agenten verwenden unterschiedliche Versionen: {versions}."
 }

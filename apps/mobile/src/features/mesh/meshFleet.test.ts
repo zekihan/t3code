@@ -6,6 +6,7 @@ import {
   formatCertificateExpiry,
   formatRtt,
   formatTunnelUptime,
+  getMeshVersionGroups,
   parseMeshFleet,
 } from "./meshFleet";
 
@@ -84,6 +85,37 @@ it("reads the hub's nulls and absences as unknown", () => {
     services: {},
   });
   expect(parseMeshFleet({ machines: [] })).toEqual({ callerPath: null, machines: [] });
+});
+
+it("groups reported versions and ignores agents without one", () => {
+  const fleet = parseMeshFleet({
+    machines: [
+      { ...arch, name: "z-arch", agentVersion: "0.2.0" },
+      {
+        ...arch,
+        name: "z-mac",
+        viewerUrl: "https://t3.z-mac.mesh.noqer.com",
+        agentVersion: "0.2.0",
+      },
+      {
+        ...arch,
+        name: "z-pi",
+        viewerUrl: "https://t3.z-pi.mesh.noqer.com",
+        agentVersion: "bad-version",
+      },
+      {
+        ...arch,
+        name: "z-unknown",
+        viewerUrl: "https://t3.z-unknown.mesh.noqer.com",
+        agentVersion: null,
+      },
+    ],
+  })!;
+  expect(getMeshVersionGroups(fleet)).toEqual([
+    { version: "0.2.0", machines: ["z-arch", "z-mac"] },
+    { version: "bad-version", machines: ["z-pi"] },
+  ]);
+  expect(getMeshVersionGroups({ ...fleet, machines: fleet.machines.slice(0, 1) })).toBeNull();
 });
 
 it("treats a path other than LAN or OCI, and unreadable times, as unknown", () => {

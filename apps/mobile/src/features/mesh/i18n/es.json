@@ -279,5 +279,6 @@
   "1d199fa991c77fdb": "Prueba directa manual",
   "496fe41329b84614": "Probar la conexión directa ahora",
   "135b3243e0a44839": "Decisiones recientes sobre la conexión directa",
-  "ad1600c20fbcbdc6": "Opciones de mesh"
+  "ad1600c20fbcbdc6": "Opciones de mesh",
+  "bb10e11c59802720": "Los agentes usan versiones diferentes: {versions}."
 }

@@ -15,6 +15,7 @@ import {
   formatPath,
   formatServiceUnavailable,
   formatTunnelUptime,
+  getMeshVersionGroups,
   type MeshFleetMachine,
 } from "./meshFleet";
 import { formatLastSeen } from "./meshMachines";
@@ -156,10 +157,20 @@ export function MeshFleetView(props: MeshFleetViewProps) {
     );
   }
   const machines = state.fleet?.machines ?? [];
+  const versionGroups = state.fleet ? getMeshVersionGroups(state.fleet) : null;
+  const versionSummary = versionGroups
+    ?.map(({ version, machines: names }) => `${version} on ${names.join(", ")}`)
+    .join("; ");
   return (
     <View className="gap-3">
       {props.certificateWarning ? (
         <Notice message={props.certificateWarning} icon="exclamationmark.triangle" />
+      ) : null}
+      {versionSummary ? (
+        <Notice
+          icon="exclamationmark.triangle"
+          message={gt("Agents run different versions: {versions}.", { versions: versionSummary })}
+        />
       ) : null}
       {state.problem ? (
         <Notice

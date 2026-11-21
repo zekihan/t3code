@@ -117,6 +117,24 @@ export function parseMeshFleet(payload: unknown): MeshFleet | null {
   };
 }
 
+export interface MeshVersionGroup {
+  readonly version: string;
+  readonly machines: readonly string[];
+}
+
+/** The agents' versions with the machines on each, or null when they all match. */
+export function getMeshVersionGroups(fleet: MeshFleet): readonly MeshVersionGroup[] | null {
+  const groups = new Map<string, string[]>();
+  for (const machine of fleet.machines) {
+    if (machine.agentVersion === null) continue;
+    const names = groups.get(machine.agentVersion) ?? [];
+    names.push(machine.name);
+    groups.set(machine.agentVersion, names);
+  }
+  if (groups.size < 2) return null;
+  return [...groups].map(([version, machines]) => ({ version, machines }));
+}
+
 export const CERT_WARNING_DAYS = 30;
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
@@ -162,9 +180,13 @@ export function formatServiceUnavailable(
   if (since === null || now - since < MINUTE) return resolve(msg("T3 unavailable"));
   const elapsed = Math.max(0, now - since);
   if (elapsed < HOUR)
-    return resolve(msg("T3 unavailable for {count}m", { count: String(Math.floor(elapsed / MINUTE)) }));
+    return resolve(
+      msg("T3 unavailable for {count}m", { count: String(Math.floor(elapsed / MINUTE)) }),
+    );
   if (elapsed < DAY)
-    return resolve(msg("T3 unavailable for {count}h", { count: String(Math.floor(elapsed / HOUR)) }));
+    return resolve(
+      msg("T3 unavailable for {count}h", { count: String(Math.floor(elapsed / HOUR)) }),
+    );
   return resolve(msg("T3 unavailable for {count}d", { count: String(Math.floor(elapsed / DAY)) }));
 }
 

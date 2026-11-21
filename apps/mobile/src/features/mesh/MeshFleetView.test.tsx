@@ -126,6 +126,20 @@ it("shows a machine's tunnel, agent version and certificate", () => {
   view.unmount();
 });
 
+it("shows the distinct agent versions", () => {
+  const view = render({
+    state: listed([
+      machine("z-arch", { agentVersion: "0.3.0" }),
+      machine("z-mac", { agentVersion: "0.2.0" }),
+      machine("unknown", { agentVersion: null }),
+    ]),
+  });
+  expect(view.container.textContent).toContain(
+    "Agents run different versions: 0.3.0 on z-arch; 0.2.0 on z-mac.",
+  );
+  view.unmount();
+});
+
 it("shows an offline machine, a near certificate expiry and alerts as chips", () => {
   const view = render({
     state: listed([
