@@ -8,7 +8,7 @@ export type MeshPath = "LAN" | "OCI";
 
 export interface MeshServiceHealth {
   readonly state: "reachable" | "unreachable" | "unknown";
-  readonly checkedAt: number | null;
+  readonly since: number | null;
 }
 
 export interface MeshFleetMachine {
@@ -74,10 +74,10 @@ function parseServices(value: unknown): Record<string, MeshServiceHealth> {
     if (!isRecord(service)) continue;
     const { state } = service;
     if (state !== "reachable" && state !== "unreachable" && state !== "unknown") continue;
-    if (service.checkedAt !== null && typeof service.checkedAt !== "string") continue;
-    const checkedAt = parseTime(service.checkedAt);
-    if (service.checkedAt !== null && checkedAt === null) continue;
-    services[name] = { state, checkedAt };
+    if (service.since !== null && typeof service.since !== "string") continue;
+    const since = parseTime(service.since);
+    if (service.since !== null && since === null) continue;
+    services[name] = { state, since };
   }
   return services;
 }
@@ -154,18 +154,18 @@ export function formatTunnelUptime(
   );
 }
 
-export function formatServiceCheck(
-  checkedAt: number,
+export function formatServiceUnavailable(
+  since: number | null,
   now: number,
   resolve: MessageResolver = m,
 ): string {
-  const elapsed = Math.max(0, now - checkedAt);
-  if (elapsed < MINUTE) return resolve(msg("Checked just now"));
+  if (since === null || now - since < MINUTE) return resolve(msg("T3 unavailable"));
+  const elapsed = Math.max(0, now - since);
   if (elapsed < HOUR)
-    return resolve(msg("Checked {count}m ago", { count: String(Math.floor(elapsed / MINUTE)) }));
+    return resolve(msg("T3 unavailable for {count}m", { count: String(Math.floor(elapsed / MINUTE)) }));
   if (elapsed < DAY)
-    return resolve(msg("Checked {count}h ago", { count: String(Math.floor(elapsed / HOUR)) }));
-  return resolve(msg("Checked {count}d ago", { count: String(Math.floor(elapsed / DAY)) }));
+    return resolve(msg("T3 unavailable for {count}h", { count: String(Math.floor(elapsed / HOUR)) }));
+  return resolve(msg("T3 unavailable for {count}d", { count: String(Math.floor(elapsed / DAY)) }));
 }
 
 export interface CertificateExpiry {

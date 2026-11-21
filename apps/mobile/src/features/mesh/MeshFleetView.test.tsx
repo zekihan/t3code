@@ -216,19 +216,19 @@ it("keeps the last status under a failure notice", () => {
 });
 
 it("shows T3 unavailability only for an online machine with an unreachable service", () => {
-  const unreachable = { state: "unreachable" as const, checkedAt: NOW - 5 * 60_000 };
+  const unreachable = { state: "unreachable" as const, since: NOW - 5 * 60_000 };
   const view = render({
     state: listed([
       machine("down", { services: { t3: unreachable } }),
-      machine("healthy", { services: { t3: { state: "reachable", checkedAt: NOW } } }),
+      machine("healthy", { services: { t3: { state: "reachable", since: NOW } } }),
       machine("absent"),
-      machine("unknown", { services: { t3: { state: "unknown", checkedAt: null } } }),
+      machine("unknown", { services: { t3: { state: "unknown", since: null } } }),
       machine("offline", { online: false, services: { t3: unreachable } }),
-      machine("unchecked", { services: { t3: { state: "unreachable", checkedAt: null } } }),
+      machine("unchecked", { services: { t3: { state: "unreachable", since: null } } }),
     ]),
   });
   const text = view.container.textContent ?? "";
   expect(text.match(/T3 unavailable/g)).toHaveLength(2);
-  expect(text).toContain("T3 unavailable · Checked 5m ago");
+  expect(text).toContain("T3 unavailable for 5m");
   view.unmount();
 });
