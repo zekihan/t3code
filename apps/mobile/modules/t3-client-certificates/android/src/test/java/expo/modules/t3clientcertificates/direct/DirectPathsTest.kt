@@ -444,8 +444,15 @@ class DirectPathsTest {
 
   @Test fun aRequestThatMeetsAnOldAwayVerdictAsksTheHubAgainWhichNoticesAnOutage() {
     home = HubGate.AWAY
-    val paths = paths(stored())
+    val paths =
+      paths(
+        MemoryDirectStore(
+          DirectSnapshot(world.trust().copy(fetchedAt = now - 1), mapOf(MACHINE to route()))
+        )
+      )
     assertEquals(viewer(ViewerReason.AWAY), paths.awaitPath(MACHINE))
+    // The first contact is over once it has refreshed the trust; the clock moves on after that.
+    awaitUntil { paths.status(MACHINE).trustFetchedAt == now }
     // Soon after the verdict a request does not ask again; long after it, it does. The hub is down
     // by then, and the request itself keeps the viewer host while the contact finds that out.
     val calls = fleetCalls.get()
