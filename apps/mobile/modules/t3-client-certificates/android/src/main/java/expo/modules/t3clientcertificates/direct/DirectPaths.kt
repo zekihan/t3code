@@ -134,6 +134,7 @@ internal class DirectPaths(
   private val unknownOutcomes = mutableMapOf<String, Pair<Long, String>>()
   private val streamSessions = mutableMapOf<String, OpenStream>()
   private var hubRunning = false
+  private var hubAgain = false
   private var hubStartedNanos = 0L
   private var hubSettledEpoch = -1L
   private var lastHubAt = 0L
@@ -381,6 +382,8 @@ internal class DirectPaths(
   private fun startHubContactLocked(force: Boolean) {
     val recent = clock() - lastHubAt < timings.hubDebounceMs && hubSettledEpoch == model.epoch
     val skip = recent && !force
+    // A forced contact asked for while one runs follows it: the running one may predate the reason.
+    if (hubRunning && force) hubAgain = true
     if (hubRunning || !model.enrolled || skip) return
     hubRunning = true
     hubStartedNanos = System.nanoTime()
@@ -410,16 +413,21 @@ internal class DirectPaths(
     }
     val trust = hubAttempt(hubTrust)
     log("hub contact: trust ${describe(trust)}")
+    var again = false
     mutate {
       if (trust is HubReply.Ok) {
         model.trustRefreshed(trust.value)
         store.save(model.snapshot())
       }
       hubRunning = false
+      again = hubAgain
+      hubAgain = false
     }
-    // The network changed while this contact ran, and its own request was skipped for it: the new
-    // network gets its contact now, not when the next request happens to ask.
-    lock.withLock { if (hubSettledEpoch != model.epoch) startHubContactLocked(force = true) }
+    // The network changed while this contact ran, and its own request was skipped for it, or a
+    // forced contact was asked for meanwhile: that contact runs now, not when the next request asks.
+    lock.withLock {
+      if (again || hubSettledEpoch != model.epoch) startHubContactLocked(force = true)
+    }
   }
 
   @Suppress("TooGenericExceptionCaught") // Whatever goes wrong, the contact simply failed.
