@@ -89,7 +89,9 @@ export function ConnectionEnvironmentRow(props: {
     props.environment.displayUrl,
     connectionState.attempt,
   );
-  const certificateProblem = enabled ? clientCertificateSelectionMessage(certificate.status) : null;
+  const certificateProblem = enabled
+    ? clientCertificateSelectionMessage(certificate.status, m)
+    : null;
   // Android 17 drops traffic to a local network address without the permission, which only ever
   // looks like a timeout; say what is wrong instead.
   const localNetwork = useLocalNetworkAccess().state ?? "not-required";
@@ -97,7 +99,13 @@ export function ConnectionEnvironmentRow(props: {
   const hasConnectionFailure = enabled && props.environment.connectionError !== null;
   const rawStatusLabel = connectionStatusLabel(props.environment, m);
   const statusLabel = hasConnectionFailure
-    ? explainConnectionError(rawStatusLabel, lanHost, localNetwork)
+    ? explainConnectionError(
+        rawStatusLabel,
+        lanHost,
+        localNetwork,
+        m,
+        props.environment.connectionError,
+      )
     : rawStatusLabel;
   const statusTraceId = enabled ? props.environment.connectionErrorTraceId : null;
   const freeze = enabled
@@ -173,7 +181,13 @@ export function ConnectionEnvironmentRow(props: {
           {diagnosis && !certificateProblem ? (
             <>
               <Text className="text-xs text-danger-foreground">
-                {explainConnectionError(diagnosis.headline, lanHost, localNetwork)}
+                {explainConnectionError(
+                  diagnosis.headline,
+                  lanHost,
+                  localNetwork,
+                  m,
+                  props.environment.connectionError,
+                )}
               </Text>
               {connectionState.attempt > 0 ? (
                 <Text className="text-xs text-foreground-muted">

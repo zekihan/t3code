@@ -104,6 +104,7 @@ import { SettingsDiagnosticsRouteScreen } from "./features/diagnostics/SettingsD
 import { SettingsProviderAccountsRouteScreen } from "./features/settings/SettingsProviderAccountsRouteScreen";
 import { SettingsAuthRouteScreen } from "./features/settings/SettingsAuthRouteScreen";
 import { MeshRouteScreen } from "./features/mesh/MeshRouteScreen";
+import { MESH_ROUTE_TITLE } from "./features/mesh/meshSettingsRow";
 import { SettingsEnvironmentDetailRouteScreen } from "./features/settings/SettingsEnvironmentDetailRouteScreen";
 import {
   SettingsIssueTrackerRouteScreen,
@@ -167,7 +168,7 @@ const { title: _compactBrandTitle, ...compactBrandHeaderOptions } = getCompactBr
 const ROUTE_TITLES: Readonly<Record<string, string>> = {
   Settings: msg("Settings"),
   SettingsEnvironments: msg("Environments"),
-  SettingsMesh: msg("Mesh"),
+  SettingsMesh: MESH_ROUTE_TITLE,
   SettingsEnvironmentDetail: msg("Environment"),
   SettingsEnvironmentNewThreads: msg("Threads"),
   SettingsEnvironmentSourceControl: msg("Source control & issues"),

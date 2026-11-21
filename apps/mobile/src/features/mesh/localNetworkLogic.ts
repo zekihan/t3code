@@ -1,18 +1,28 @@
+import { msg } from "gt-react-native";
+
+import { m, type MessageResolver } from "../../i18n/messages";
 import type { LocalNetworkRequestResult, LocalNetworkState } from "./localNetwork.types";
 
 /** The moments the person is asked, at most once each per app start. */
 export type LocalNetworkTrigger = "mesh-screen" | "add-environment";
 
-export const LOCAL_NETWORK_DENIED = "Local network access denied. Allow it in Settings.";
+/** Marked, still English: resolve it with `m` or `useMessages()` where it is shown. */
+export const LOCAL_NETWORK_DENIED = msg("Local network access denied. Allow it in Settings.");
 
 const RATIONALE: Readonly<Record<LocalNetworkTrigger, string>> = {
-  "mesh-screen":
-    "Android 17 asks before an app talks to devices on your home network. T3 Mesh uses it to reach your machines directly when you are at home.",
-  "add-environment":
+  "mesh-screen": msg(
+    "Android 17 asks before an app talks to devices on your home network. {product} uses it to reach your machines directly when you are at home.",
+    { product: "T3 Mesh" },
+  ),
+  "add-environment": msg(
     "Android 17 asks before an app talks to devices on your local network, and this address is on it.",
+  ),
 };
 
-export const localNetworkRationale = (trigger: LocalNetworkTrigger): string => RATIONALE[trigger];
+export const localNetworkRationale = (
+  trigger: LocalNetworkTrigger,
+  resolve: MessageResolver = m,
+): string => resolve(RATIONALE[trigger]);
 
 const IPV4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
 
@@ -71,7 +81,10 @@ export function createAskOnce(api: LocalNetworkAccessApi) {
     const state = await api.getState();
     if (state !== "denied" || asked.has(trigger)) return state;
     asked.add(trigger);
-    const agreed = await api.confirm("Allow local network access?", localNetworkRationale(trigger));
+    const agreed = await api.confirm(
+      m(msg("Allow local network access?")),
+      localNetworkRationale(trigger),
+    );
     if (!agreed) return state;
     return (await api.request()).state;
   };
@@ -86,14 +99,20 @@ const UNREACHABLE =
 /**
  * A connection failure to a local network host, worded for the missing permission: Android 17
  * drops the packets, so the app only ever sees a timeout. Anything else keeps its own text.
+ *
+ * `error` is shown, so it may be translated; UNREACHABLE only knows English. `rawError`, the
+ * untranslated error behind it, is matched too, so the check still holds in another language.
  */
 export function explainConnectionError(
   error: string | null,
   host: string | null,
   state: LocalNetworkState,
+  resolve: MessageResolver = m,
+  rawError: string | null = null,
 ): string | null {
   if (error === null || host === null) return error;
-  return state === "denied" && isLocalNetworkHost(host) && UNREACHABLE.test(error)
-    ? LOCAL_NETWORK_DENIED
+  const unreachable = UNREACHABLE.test(error) || (rawError !== null && UNREACHABLE.test(rawError));
+  return state === "denied" && isLocalNetworkHost(host) && unreachable
+    ? resolve(LOCAL_NETWORK_DENIED)
     : error;
 }

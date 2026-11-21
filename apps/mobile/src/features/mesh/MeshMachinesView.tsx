@@ -1,4 +1,5 @@
 import type { EnvironmentId } from "@t3tools/contracts";
+import { T, useGT, useMessages } from "gt-react-native";
 import { View } from "react-native";
 
 import { AppText as Text } from "../../components/ui/AppText";
@@ -36,12 +37,16 @@ export function meshViewKind(state: MeshState) {
 
 export function MeshMachinesView(props: MeshMachinesViewProps) {
   const { state } = props;
+  const gt = useGT();
+  const m = useMessages();
   const kind = meshViewKind(state);
   if (kind === "loading") {
     return (
-      <View className="items-center gap-3 px-8 py-12" accessibilityLabel="Loading machines">
+      <View className="items-center gap-3 px-8 py-12" accessibilityLabel={gt("Loading machines")}>
         <AppActivityIndicator />
-        <Text className="text-foreground-muted">Loading machines</Text>
+        <Text className="text-foreground-muted">
+          <T>Loading machines</T>
+        </Text>
       </View>
     );
   }
@@ -51,19 +56,19 @@ export function MeshMachinesView(props: MeshMachinesViewProps) {
     return (
       <EmptyState
         variant="plain"
-        title={problemTitle(kind)}
-        detail={problemDetail(problem)}
-        actionLabel={kind === "unavailable" ? "Try again" : "Select certificate"}
+        title={problemTitle(kind, m)}
+        detail={problemDetail(problem, m)}
+        actionLabel={kind === "unavailable" ? gt("Try again") : gt("Select certificate")}
         onAction={kind === "unavailable" ? props.onRetry : props.onChooseCertificate}
         action={
           enrollable ? (
             <View className="items-center gap-2">
               <Button
                 tone="primary"
-                label="Select certificate"
+                label={gt("Select certificate")}
                 onPress={props.onChooseCertificate}
               />
-              <Button tone="text" label="Enroll this device" onPress={props.onEnroll!} />
+              <Button tone="text" label={gt("Enroll this device")} onPress={props.onEnroll!} />
             </View>
           ) : undefined
         }
@@ -74,9 +79,9 @@ export function MeshMachinesView(props: MeshMachinesViewProps) {
     return (
       <EmptyState
         variant="plain"
-        title="No machines"
-        detail="The hub lists no machines for this certificate."
-        actionLabel="Refresh"
+        title={gt("No machines")}
+        detail={gt("The hub lists no machines for this certificate.")}
+        actionLabel={gt("Refresh")}
         onAction={props.onRetry}
       />
     );
@@ -91,11 +96,16 @@ export function MeshMachinesView(props: MeshMachinesViewProps) {
         <Notice
           tone="danger"
           icon="exclamationmark.triangle"
-          message={`${problemTitle(state.problem.kind)}. ${problemDetail(state.problem)} Showing the last list.`}
+          message={gt("{title}. {detail} Showing the last list.", {
+            title: problemTitle(state.problem.kind, m),
+            detail: problemDetail(state.problem, m),
+          })}
         />
       ) : null}
       {state.fromCache && !state.problem ? (
-        <Text className="px-1 text-sm text-foreground-muted">Showing the last list.</Text>
+        <Text className="px-1 text-sm text-foreground-muted">
+          <T>Showing the last list.</T>
+        </Text>
       ) : null}
       <View className="overflow-hidden rounded-[26px] border-continuous bg-grouped-card">
         {machines.map((machine, index) => {
@@ -112,11 +122,11 @@ export function MeshMachinesView(props: MeshMachinesViewProps) {
                   <Text textRole="body" className="text-foreground">
                     {machine.name}
                     <Text className="text-sm text-foreground-muted">
-                      {machine.online ? "  Tunnel up" : "  Tunnel down"}
+                      {`  ${machine.online ? gt("Tunnel up") : gt("Tunnel down")}`}
                     </Text>
                   </Text>
                   <Text className="text-sm text-foreground-muted">
-                    {formatLastSeen(machine.lastSeen, props.now)}
+                    {formatLastSeen(machine.lastSeen, props.now, m)}
                   </Text>
                   <Text selectable className="text-xs text-foreground-muted">
                     {machine.viewerOrigin}
@@ -126,16 +136,16 @@ export function MeshMachinesView(props: MeshMachinesViewProps) {
                   <Button
                     tone="secondary"
                     size="compact"
-                    label="Open"
-                    accessibilityLabel={`Open ${machine.name}`}
+                    label={gt("Open", { $context: "verb, opens a paired machine" })}
+                    accessibilityLabel={gt("Open {name}", { name: machine.name })}
                     onPress={() => props.onOpen(environmentId)}
                   />
                 ) : (
                   <Button
                     tone="primary"
                     size="compact"
-                    label="Pair"
-                    accessibilityLabel={`Pair ${machine.name}`}
+                    label={gt("Pair", { $context: "verb, pairs a machine" })}
+                    accessibilityLabel={gt("Pair {name}", { name: machine.name })}
                     onPress={() => props.onPair(machine)}
                   />
                 )}

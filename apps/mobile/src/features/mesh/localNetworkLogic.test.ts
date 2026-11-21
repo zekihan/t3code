@@ -147,6 +147,28 @@ describe("explainConnectionError", () => {
     );
   });
 
+  it("matches the untranslated error when the shown one is translated", () => {
+    const resolve = (message: string) => `[de] ${message}`;
+    expect(
+      explainConnectionError(
+        "Zeitüberschreitung",
+        "192.168.2.41",
+        "denied",
+        resolve as never,
+        "Network request failed",
+      ),
+    ).toBe(`[de] ${LOCAL_NETWORK_DENIED}`);
+    expect(
+      explainConnectionError(
+        "Code abgelehnt",
+        "192.168.2.41",
+        "denied",
+        resolve as never,
+        "The pairing code was not accepted.",
+      ),
+    ).toBe("Code abgelehnt");
+  });
+
   it("leaves every other failure as it was", () => {
     expect(explainConnectionError("timeout", "192.168.2.41", "granted")).toBe("timeout");
     expect(explainConnectionError("timeout", "192.168.2.41", "not-required")).toBe("timeout");

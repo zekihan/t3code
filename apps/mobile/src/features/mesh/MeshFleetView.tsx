@@ -1,3 +1,4 @@
+import { T, useGT, useMessages } from "gt-react-native";
 import { View } from "react-native";
 
 import { AppText as Text } from "../../components/ui/AppText";
@@ -37,8 +38,9 @@ export function meshFleetViewKind(state: MeshFleetState) {
 
 /** The phone's hub request: its path and round-trip time, labelled as that request's. */
 export function HubRequestSummary(props: { readonly state: MeshFleetState }) {
+  const m = useMessages();
   if (props.state.request === null) return null;
-  const hub = describeHubRequest(props.state.request);
+  const hub = describeHubRequest(props.state.request, m);
   return (
     <View className="gap-0.5 rounded-[26px] border-continuous bg-grouped-card px-4 py-3">
       <Text textRole="body" className="text-foreground">
@@ -52,8 +54,11 @@ export function HubRequestSummary(props: { readonly state: MeshFleetState }) {
 
 function FleetMachineRow(props: { readonly machine: MeshFleetMachine; readonly now: number }) {
   const { machine, now } = props;
-  const uptime = formatTunnelUptime(machine.connectedSince, now);
-  const expiry = formatCertificateExpiry(machine.certNotAfter, now);
+  const gt = useGT();
+  const m = useMessages();
+  const uptime = formatTunnelUptime(machine.connectedSince, now, m);
+  const expiry = formatCertificateExpiry(machine.certNotAfter, now, m);
+  const path = formatPath(machine.tunnelPath, m);
   return (
     <View className="gap-1 px-4 py-3">
       <View className="flex-row items-center gap-3">
@@ -61,22 +66,26 @@ function FleetMachineRow(props: { readonly machine: MeshFleetMachine; readonly n
         <Text textRole="body" className="min-w-0 flex-1 text-foreground">
           {machine.name}
           <Text className="text-sm text-foreground-muted">
-            {machine.online ? "  Tunnel up" : "  Tunnel down"}
+            {`  ${machine.online ? gt("Tunnel up") : gt("Tunnel down")}`}
           </Text>
         </Text>
       </View>
       <View className="gap-0.5 pl-6">
         {machine.online ? (
           <Text className="text-sm text-foreground-muted">
-            {`Tunnel path: ${formatPath(machine.tunnelPath)}${uptime ? ` · ${uptime}` : ""}`}
+            {uptime
+              ? gt("Tunnel path: {path} · {uptime}", { path, uptime })
+              : gt("Tunnel path: {path}", { path })}
           </Text>
         ) : (
           <Text className="text-sm text-foreground-muted">
-            {formatLastSeen(machine.lastSeen, now)}
+            {formatLastSeen(machine.lastSeen, now, m)}
           </Text>
         )}
         <Text className="text-sm text-foreground-muted">
-          {machine.agentVersion ? `Agent ${machine.agentVersion}` : "Agent version unknown"}
+          {machine.agentVersion
+            ? gt("Agent {version}", { version: machine.agentVersion })
+            : gt("Agent version unknown")}
         </Text>
         <Text
           className={cn(
@@ -93,7 +102,7 @@ function FleetMachineRow(props: { readonly machine: MeshFleetMachine; readonly n
                 key={alert}
                 size="small"
                 icon="exclamationmark.triangle"
-                label={formatAlert(alert)}
+                label={formatAlert(alert, m)}
               />
             ))}
           </View>
@@ -105,12 +114,16 @@ function FleetMachineRow(props: { readonly machine: MeshFleetMachine; readonly n
 
 export function MeshFleetView(props: MeshFleetViewProps) {
   const { state } = props;
+  const gt = useGT();
+  const m = useMessages();
   const kind = meshFleetViewKind(state);
   if (kind === "loading") {
     return (
-      <View className="items-center gap-3 px-8 py-12" accessibilityLabel="Loading fleet">
+      <View className="items-center gap-3 px-8 py-12" accessibilityLabel={gt("Loading fleet")}>
         <AppActivityIndicator />
-        <Text className="text-foreground-muted">Loading fleet</Text>
+        <Text className="text-foreground-muted">
+          <T>Loading fleet</T>
+        </Text>
       </View>
     );
   }
@@ -118,9 +131,9 @@ export function MeshFleetView(props: MeshFleetViewProps) {
     return (
       <EmptyState
         variant="plain"
-        title={problemTitle(kind)}
-        detail={problemDetail(state.problem!)}
-        actionLabel={kind === "unavailable" ? "Try again" : "Select certificate"}
+        title={problemTitle(kind, m)}
+        detail={problemDetail(state.problem!, m)}
+        actionLabel={kind === "unavailable" ? gt("Try again") : gt("Select certificate")}
         onAction={kind === "unavailable" ? props.onRetry : props.onChooseCertificate}
       />
     );
@@ -129,9 +142,9 @@ export function MeshFleetView(props: MeshFleetViewProps) {
     return (
       <EmptyState
         variant="plain"
-        title="No machines"
-        detail="The hub lists no machines for this certificate."
-        actionLabel="Refresh"
+        title={gt("No machines")}
+        detail={gt("The hub lists no machines for this certificate.")}
+        actionLabel={gt("Refresh")}
         onAction={props.onRetry}
       />
     );
@@ -146,7 +159,10 @@ export function MeshFleetView(props: MeshFleetViewProps) {
         <Notice
           tone="danger"
           icon="exclamationmark.triangle"
-          message={`${problemTitle(state.problem.kind)}. ${problemDetail(state.problem)} Showing the last status.`}
+          message={gt("{title}. {detail} Showing the last status.", {
+            title: problemTitle(state.problem.kind, m),
+            detail: problemDetail(state.problem, m),
+          })}
         />
       ) : null}
       <HubRequestSummary state={state} />
@@ -159,8 +175,10 @@ export function MeshFleetView(props: MeshFleetViewProps) {
         ))}
       </View>
       <Text className="px-1 text-xs text-foreground-muted">
-        Tunnel up means the machine holds a live tunnel session with the hub. It does not mean T3
-        itself is healthy.
+        <T>
+          Tunnel up means the machine holds a live tunnel session with the hub. It does not mean T3
+          itself is healthy.
+        </T>
       </Text>
     </View>
   );

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useGT } from "gt-react-native";
 import { View } from "react-native";
 
 import * as Dialog from "../../components/ui/Dialog";
@@ -10,6 +11,7 @@ export function ClientCertificateSelectAgain(props: {
   readonly url: string;
   readonly onSelected: () => void;
 }) {
+  const gt = useGT();
   const [busy, setBusy] = useState(false);
   const choose = () => {
     setBusy(true);
@@ -19,15 +21,15 @@ export function ClientCertificateSelectAgain(props: {
       })
       .catch((error: unknown) => {
         Dialog.alert(
-          "Client certificate",
-          error instanceof Error ? error.message : "Could not select certificate.",
+          gt("Client certificate"),
+          error instanceof Error ? error.message : gt("Could not select certificate."),
         );
       })
       .finally(() => setBusy(false));
   };
   return (
     <View className="flex-row px-4 pb-3.5">
-      <Button label="Select certificate" size="compact" loading={busy} onPress={choose} />
+      <Button label={gt("Select certificate")} size="compact" loading={busy} onPress={choose} />
     </View>
   );
 }

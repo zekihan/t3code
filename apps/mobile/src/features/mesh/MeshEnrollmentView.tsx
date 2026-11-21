@@ -1,3 +1,4 @@
+import { T, useGT, useMessages, Var } from "gt-react-native";
 import { useState } from "react";
 import { View } from "react-native";
 
@@ -9,6 +10,8 @@ import { EmptyState } from "../../components/ui/EmptyState";
 import { Notice } from "../../components/ui/Notice";
 import { IDENTITY_SUGGESTIONS, identityProblem, summarizeEnrollment } from "./meshEnrollmentLogic";
 import type { MeshEnrollmentState } from "./useMeshEnrollment";
+
+const HUB_HOST = "mesh.noqer.com";
 
 interface MeshEnrollmentViewProps {
   readonly state: MeshEnrollmentState;
@@ -35,26 +38,32 @@ function EnrollmentForm(props: {
   readonly onSubmit: (identity: string, token: string) => void;
   readonly onCancel: () => void;
 }) {
+  const gt = useGT();
+  const m = useMessages();
   const [identity, setIdentity] = useState(props.initialIdentity);
   const [token, setToken] = useState("");
   const enrolling = props.state.busy === "enroll";
   const name = identity.trim();
-  const problem = name.length === 0 ? null : identityProblem(name);
-  const ready = identityProblem(name) === null && token.trim().length > 0;
+  const problem = name.length === 0 ? null : identityProblem(name, m);
+  const ready = identityProblem(name, m) === null && token.trim().length > 0;
   return (
-    <View className="gap-3" accessibilityLabel="Enroll this device">
+    <View className="gap-3" accessibilityLabel={gt("Enroll this device")}>
       <View className="gap-2 rounded-[26px] border-continuous bg-grouped-card px-4 py-4">
         <Text textRole="body" className="font-t3-medium text-foreground">
-          {props.reenroll ? "Re-enroll this device" : "Enroll this device"}
+          {props.reenroll ? gt("Re-enroll this device") : gt("Enroll this device")}
         </Text>
         <Text className="text-sm text-foreground-muted">
           {props.reenroll
-            ? "A new key replaces the current one as soon as the hub accepts the token."
-            : "This device gets its own identity, with a key that never leaves the Android Keystore."}
+            ? gt("A new key replaces the current one as soon as the hub accepts the token.")
+            : gt(
+                "This device gets its own identity, with a key that never leaves the Android Keystore.",
+              )}
         </Text>
-        <Text className="pt-2 text-xs text-foreground-muted">Identity name</Text>
+        <Text className="pt-2 text-xs text-foreground-muted">
+          <T>Identity name</T>
+        </Text>
         <AppTextInput
-          accessibilityLabel="Identity name"
+          accessibilityLabel={gt("Identity name")}
           value={identity}
           editable={!enrolling}
           autoCapitalize="none"
@@ -75,25 +84,34 @@ function EnrollmentForm(props: {
           ))}
         </View>
         {problem ? <Text className="text-xs text-danger-foreground">{problem}</Text> : null}
-        <Text className="pt-2 text-xs text-foreground-muted">Enrollment token</Text>
+        <Text className="pt-2 text-xs text-foreground-muted">
+          <T>Enrollment token</T>
+        </Text>
         <AppTextInput
-          accessibilityLabel="Enrollment token"
+          accessibilityLabel={gt("Enrollment token")}
           value={token}
           editable={!enrolling}
           autoCapitalize="none"
           autoCorrect={false}
-          placeholder="Paste the one-time token"
+          placeholder={gt("Paste the one-time token")}
           onChangeText={setToken}
         />
         <Text className="text-xs text-foreground-muted">
-          Create it on the hub with t3-mesh-hub enroll-token --device {name || "<name>"}. It works
-          once, for 15 minutes.
+          <T>
+            Create it on the hub with{" "}
+            <Var>{`t3-mesh-hub enroll-token --device ${name || "<name>"}`}</Var>. It works once, for
+            15 minutes.
+          </T>
         </Text>
       </View>
       {enrolling ? (
-        <View className="flex-row items-center gap-3 px-1" accessibilityLabel="Enrolling">
+        <View className="flex-row items-center gap-3 px-1" accessibilityLabel={gt("Enrolling")}>
           <AppActivityIndicator />
-          <Text className="text-foreground-muted">Contacting mesh.noqer.com…</Text>
+          <Text className="text-foreground-muted">
+            <T>
+              Contacting <Var>{HUB_HOST}</Var>…
+            </T>
+          </Text>
         </View>
       ) : null}
       {props.state.failure ? (
@@ -106,12 +124,12 @@ function EnrollmentForm(props: {
       <View className="flex-row gap-3">
         <Button
           tone="primary"
-          label={props.reenroll ? "Re-enroll" : "Enroll"}
+          label={props.reenroll ? gt("Re-enroll") : gt("Enroll")}
           disabled={!ready}
           loading={enrolling}
           onPress={() => props.onSubmit(name, token.trim())}
         />
-        <Button tone="text" label="Cancel" disabled={enrolling} onPress={props.onCancel} />
+        <Button tone="text" label={gt("Cancel")} disabled={enrolling} onPress={props.onCancel} />
       </View>
     </View>
   );
@@ -123,9 +141,11 @@ function EnrollmentStatusCard(props: {
   readonly onReenroll: () => void;
   readonly onRemove: () => void;
 }) {
+  const gt = useGT();
+  const m = useMessages();
   const { state } = props;
   const status = state.status!;
-  const summary = summarizeEnrollment(status, state.now);
+  const summary = summarizeEnrollment(status, state.now, m);
   const working = state.busy !== null;
   // The banner above already says the hub refused the leaf.
   const failure =
@@ -149,7 +169,7 @@ function EnrollmentStatusCard(props: {
           <Text className="text-xs text-foreground-muted">{summary.lastRenewalProblem}</Text>
         ) : null}
         <Text className="pt-1 text-xs text-foreground-muted">
-          Mesh hosts use this identity instead of the certificate chosen in KeyChain.
+          <T>Mesh hosts use this identity instead of the certificate chosen in KeyChain.</T>
         </Text>
       </View>
       {failure ? (
@@ -163,15 +183,20 @@ function EnrollmentStatusCard(props: {
       <View className="flex-row flex-wrap gap-3">
         <Button
           tone="secondary"
-          label="Renew now"
+          label={gt("Renew now")}
           disabled={working || status.state !== "valid"}
           loading={state.busy === "renew"}
           onPress={props.onRenew}
         />
-        <Button tone="secondary" label="Re-enroll" disabled={working} onPress={props.onReenroll} />
+        <Button
+          tone="secondary"
+          label={gt("Re-enroll")}
+          disabled={working}
+          onPress={props.onReenroll}
+        />
         <Button
           tone="danger"
-          label="Remove enrollment"
+          label={gt("Remove enrollment")}
           disabled={working}
           loading={state.busy === "remove"}
           onPress={props.onRemove}
@@ -183,6 +208,7 @@ function EnrollmentStatusCard(props: {
 
 /** The Mesh screen's Device tab: enroll this device, see its identity, renew, re-enroll or remove it. */
 export function MeshEnrollmentView(props: MeshEnrollmentViewProps) {
+  const gt = useGT();
   const { state } = props;
   const [formOpen, setFormOpen] = useState(props.startWithForm === true);
   const kind = enrollmentViewKind(state, formOpen);
@@ -190,14 +216,16 @@ export function MeshEnrollmentView(props: MeshEnrollmentViewProps) {
     return (
       <EmptyState
         variant="plain"
-        title="Enrollment needs the Android app"
-        detail="Device enrollment keeps its key in the Android Keystore, which this build does not have."
+        title={gt("Enrollment needs the Android app")}
+        detail={gt(
+          "Device enrollment keeps its key in the Android Keystore, which this build does not have.",
+        )}
       />
     );
   }
   if (kind === "loading") {
     return (
-      <View className="items-center gap-3 px-8 py-12" accessibilityLabel="Loading enrollment">
+      <View className="items-center gap-3 px-8 py-12" accessibilityLabel={gt("Loading enrollment")}>
         <AppActivityIndicator />
       </View>
     );
@@ -206,9 +234,11 @@ export function MeshEnrollmentView(props: MeshEnrollmentViewProps) {
     return (
       <EmptyState
         variant="plain"
-        title="This device is not enrolled"
-        detail="Enroll with a one-time token to give this device its own mesh identity. Its key is created in the Android Keystore and cannot be exported. Until then mesh hosts use the certificate chosen in KeyChain."
-        actionLabel="Enroll this device"
+        title={gt("This device is not enrolled")}
+        detail={gt(
+          "Enroll with a one-time token to give this device its own mesh identity. Its key is created in the Android Keystore and cannot be exported. Until then mesh hosts use the certificate chosen in KeyChain.",
+        )}
+        actionLabel={gt("Enroll this device")}
         onAction={() => setFormOpen(true)}
       />
     );
@@ -235,10 +265,11 @@ export function MeshEnrollmentView(props: MeshEnrollmentViewProps) {
       onReenroll={() => setFormOpen(true)}
       onRemove={() =>
         Dialog.confirm({
-          title: "Remove enrollment?",
-          message:
+          title: gt("Remove enrollment?"),
+          message: gt(
             "The key is deleted from the Android Keystore. Mesh hosts go back to the certificate chosen in KeyChain, if there is one.",
-          confirmText: "Remove",
+          ),
+          confirmText: gt("Remove", { $context: "button that confirms removing the enrollment" }),
           destructive: true,
           onConfirm: props.onRemove,
         })

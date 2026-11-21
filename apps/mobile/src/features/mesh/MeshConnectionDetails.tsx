@@ -1,4 +1,5 @@
 import { useIsFocused } from "@react-navigation/native";
+import { T, useGT, useMessages } from "gt-react-native";
 import { View } from "react-native";
 
 import { AppText as Text } from "../../components/ui/AppText";
@@ -38,19 +39,26 @@ function EnvironmentPath(props: {
   readonly onOpenSettings?: () => void;
 }) {
   const { direct } = props;
-  const reason = describePathReason(direct);
+  const gt = useGT();
+  const m = useMessages();
+  const reason = describePathReason(direct, m);
   const unreachable = direct.path === "viewer" ? direct.unreachable : null;
   return (
     <View className="gap-0.5">
       <Text className="text-base text-foreground">
-        {`Connection path: ${describePathLabel(direct)}`}
+        {gt("Connection path: {path}", { path: describePathLabel(direct, m) })}
       </Text>
       {reason ? <Text className="text-sm text-foreground-muted">{reason}</Text> : null}
       {direct.path === "viewer" &&
       direct.reason === "local-network-denied" &&
       props.onOpenSettings ? (
         <View className="flex-row">
-          <Button tone="secondary" size="compact" label="Settings" onPress={props.onOpenSettings} />
+          <Button
+            tone="secondary"
+            size="compact"
+            label={gt("Settings", { $context: "opens the system settings" })}
+            onPress={props.onOpenSettings}
+          />
         </View>
       ) : null}
       {unreachable ? (
@@ -58,16 +66,18 @@ function EnvironmentPath(props: {
       ) : null}
       {direct.failure ? (
         <Text className="text-sm text-danger-foreground">
-          {describeDirectFailure(direct.failure)}
+          {describeDirectFailure(direct.failure, m)}
         </Text>
       ) : null}
       {direct.unknownOutcome ? (
         <Text className="text-sm text-danger-foreground">
-          {describeUnknownOutcome(direct.unknownOutcome)}
+          {describeUnknownOutcome(direct.unknownOutcome, m)}
         </Text>
       ) : null}
       <Text className="text-xs text-foreground-muted">
-        The route this phone's requests to the machine take; the machine's tunnel is separate.
+        <T>
+          The route this phone's requests to the machine take; the machine's tunnel is separate.
+        </T>
       </Text>
     </View>
   );
@@ -85,6 +95,8 @@ export function MeshConnectionDetailsView(props: {
   readonly onOpenSettings?: () => void;
 }) {
   const { state, direct = null, onOpenSettings } = props;
+  const gt = useGT();
+  const m = useMessages();
   const machine = machineAtOrigin(state, props.origin);
   if (machine === null) {
     // A missing certificate is Settings > Mesh's to explain; a refusal or outage is worth a line.
@@ -92,33 +104,38 @@ export function MeshConnectionDetailsView(props: {
       state.fleet === null && state.problem !== null && state.problem.kind !== "no-certificate";
     if (!unavailable && direct === null) return null;
     return (
-      <SettingsSection title="Mesh connection">
+      <SettingsSection title={gt("Mesh connection")}>
         <View className="gap-3 p-4">
           {direct ? <EnvironmentPath direct={direct} onOpenSettings={onOpenSettings} /> : null}
           {unavailable && state.problem ? (
             <Text className="text-sm text-foreground-muted">
-              {`Connection details unavailable. ${problemDetail(state.problem)}`}
+              {gt("Connection details unavailable. {detail}", {
+                detail: problemDetail(state.problem, m),
+              })}
             </Text>
           ) : null}
         </View>
       </SettingsSection>
     );
   }
-  const uptime = formatTunnelUptime(machine.connectedSince, state.now);
-  const hub = state.request === null ? null : describeHubRequest(state.request);
+  const uptime = formatTunnelUptime(machine.connectedSince, state.now, m);
+  const hub = state.request === null ? null : describeHubRequest(state.request, m);
+  const path = formatPath(machine.tunnelPath, m);
   return (
-    <SettingsSection title="Mesh connection">
+    <SettingsSection title={gt("Mesh connection")}>
       <View className="gap-3 p-4">
         {direct ? <EnvironmentPath direct={direct} onOpenSettings={onOpenSettings} /> : null}
         <View className="gap-0.5">
           <Text className="text-base text-foreground">
-            {machine.online ? "Tunnel up" : "Tunnel down"}
+            {machine.online ? gt("Tunnel up") : gt("Tunnel down")}
           </Text>
           <Text className="text-sm text-foreground-muted">
-            {`Tunnel path: ${formatPath(machine.tunnelPath)}${machine.online && uptime ? ` · ${uptime}` : ""}`}
+            {machine.online && uptime
+              ? gt("Tunnel path: {path} · {uptime}", { path, uptime })
+              : gt("Tunnel path: {path}", { path })}
           </Text>
           <Text className="text-xs text-foreground-muted">
-            The machine's own tunnel to the hub.
+            <T>The machine's own tunnel to the hub.</T>
           </Text>
         </View>
         {hub ? (
@@ -130,7 +147,7 @@ export function MeshConnectionDetailsView(props: {
         ) : null}
         {state.problem ? (
           <Text className="text-xs text-danger-foreground">
-            {`Could not refresh. ${problemDetail(state.problem)}`}
+            {gt("Could not refresh. {detail}", { detail: problemDetail(state.problem, m) })}
           </Text>
         ) : null}
       </View>

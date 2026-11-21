@@ -112,6 +112,7 @@ interface SettingsListSection {
 
 function ConfiguredSettingsRouteScreen() {
   const gt = useGT();
+  const m = useMessages();
   const navigation = useNavigation();
   const { isLoaded, isSignedIn } = useAuth({ treatPendingAsSignedOut: false });
   const { user } = useUser();
@@ -134,7 +135,7 @@ function ConfiguredSettingsRouteScreen() {
           onPress: () => navigation.navigate("SettingsAuth"),
         },
         environmentsRow(gt("Environments"), Object.keys(savedConnectionsById).length),
-        meshSettingsRow(),
+        meshSettingsRow(m),
         {
           id: "SettingsNotifications",
           icon: "bell.badge",
@@ -148,12 +149,13 @@ function ConfiguredSettingsRouteScreen() {
 
 function LocalSettingsRouteScreen() {
   const gt = useGT();
+  const m = useMessages();
   const { savedConnectionsById } = useSavedRemoteConnections();
   return (
     <SettingsList
       connections={[
         environmentsRow(gt("Environments"), Object.keys(savedConnectionsById).length),
-        meshSettingsRow(),
+        meshSettingsRow(m),
       ]}
     />
   );
