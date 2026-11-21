@@ -139,6 +139,37 @@ describe("withMesh config", () => {
     withMesh(input, VERSION_ENV);
     expect(input).toEqual(upstreamConfig());
   });
+
+  it("reuses the Android usage widget registration for fleet status", () => {
+    const usage = {
+      name: "SubscriptionUsage",
+      displayName: "Usage",
+      description: "Subscription quotas",
+      android: { minWidth: 250, initialLayout: "./Usage.android.tsx" },
+    };
+    const activity = { name: "AgentActivity", android: null };
+    const input = upstreamConfig();
+    input.plugins.push(["expo-widgets", { widgets: [usage, activity] }]);
+    const config = withMesh(input, VERSION_ENV);
+    expect(config.extra.meshFleetWidget).toBe(true);
+    expect(config.plugins).toContainEqual([
+      "expo-widgets",
+      {
+        widgets: [
+          {
+            ...usage,
+            displayName: "Mesh fleet status",
+            description: "Fleet health, connection path, and device certificate status.",
+            android: {
+              minWidth: 250,
+              initialLayout: "./src/features/mesh/MeshFleetWidget.android.tsx",
+            },
+          },
+          activity,
+        ],
+      },
+    ]);
+  });
 });
 
 describe("withMesh versions", () => {
@@ -289,6 +320,10 @@ describe("withMesh network security config", () => {
     );
     await compileModsAsync(config, { projectRoot, platforms: ["android"] });
 
+    const manifest = NodeFS.readFileSync(NodePath.join(main, "AndroidManifest.xml"), "utf8");
+    expect(manifest).toContain(
+      'android:name="expo.modules.widgets.LAUNCH_URL.SubscriptionUsage" android:value="t3mesh://settings/mesh"',
+    );
     const xml = NodeFS.readFileSync(
       NodePath.join(main, "res/xml/network_security_config.xml"),
       "utf8",

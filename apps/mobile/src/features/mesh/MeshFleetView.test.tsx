@@ -65,6 +65,7 @@ const state = (overrides: Partial<MeshFleetState>): MeshFleetState => ({
   request: null,
   problem: null,
   loading: false,
+  checkedAt: null,
   now: NOW,
   ...overrides,
 });

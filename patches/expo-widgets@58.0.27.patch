@@ -312,3 +312,29 @@ index 690d0695c726dd4f260ba3aeb4edb82b9a72cd39..dc700b6f9320406ae567da5f25f88358
  }
  
  export declare class NativeLiveActivity extends SharedObject<LiveActivityEvents> {
+diff --git a/android/src/main/java/expo/modules/widgets/WidgetInteractionAction.kt b/android/src/main/java/expo/modules/widgets/WidgetInteractionAction.kt
+--- a/android/src/main/java/expo/modules/widgets/WidgetInteractionAction.kt
++++ b/android/src/main/java/expo/modules/widgets/WidgetInteractionAction.kt
+@@ -3,6 +3,8 @@
+ import android.content.Context
+ import android.content.Intent
++import android.content.pm.PackageManager
+ import android.net.Uri
+ import androidx.glance.action.Action
+ import androidx.glance.appwidget.action.actionSendBroadcast
++import androidx.glance.appwidget.action.actionStartActivity
+ import expo.modules.widgets.notifications.ExpoWidgetsNotificationReceiver
+@@ -29,4 +31,13 @@
+ internal fun WidgetInteraction.toGlanceAction(context: Context): Action {
++  if (source is InteractionSource.Widget) {
++    val launchUrl = context.packageManager
++      .getApplicationInfo(context.packageName, PackageManager.GET_META_DATA)
++      .metaData?.getString("expo.modules.widgets.LAUNCH_URL.${source.name}")
++    if (launchUrl != null) {
++      val intent = Intent(Intent.ACTION_VIEW, Uri.parse(launchUrl)).setPackage(context.packageName)
++      return actionStartActivity(intent)
++    }
++  }
+   val intent = when (source) {
+     is InteractionSource.Widget -> Intent(WIDGET_INTERACTION_ACTION)
+       .setComponent(widgetProviderComponentName(context, source.name))

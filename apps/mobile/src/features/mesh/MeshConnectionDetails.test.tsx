@@ -69,6 +69,7 @@ const state = (overrides: Partial<MeshFleetState> = {}): MeshFleetState => ({
   request: { path: "LAN", rttMs: 42 },
   problem: null,
   loading: false,
+  checkedAt: NOW,
   now: NOW,
   ...overrides,
 });

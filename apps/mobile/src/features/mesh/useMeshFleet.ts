@@ -1,7 +1,8 @@
 import { msg } from "gt-react-native";
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { createContext, use, useEffect, useEffectEvent, useRef, useState } from "react";
 
 import { m } from "../../i18n/messages";
+import { isAppActive } from "../../lib/appState";
 import { chooseClientCertificate } from "../../lib/clientCertificates";
 import type { MeshFleet, MeshHubRequest } from "./meshFleet";
 import { fetchMeshFleet } from "./meshHub";
@@ -17,6 +18,8 @@ export interface MeshFleetState {
   readonly request: MeshHubRequest | null;
   readonly problem: MeshProblem | null;
   readonly loading: boolean;
+  /** When the displayed fleet was last fetched successfully. */
+  readonly checkedAt: number | null;
   /** When the fleet was last checked, for "up 3h" and "expires in 12 days" labels. */
   readonly now: number;
 }
@@ -26,6 +29,7 @@ const initialState = (): MeshFleetState => ({
   request: null,
   problem: null,
   loading: true,
+  checkedAt: null,
   now: Date.now(),
 });
 
@@ -35,23 +39,29 @@ const initialState = (): MeshFleetState => ({
  * changes or the app returns to the front while focused, so a network change updates the path.
  * The newest request wins: an answer that arrives after a newer one started is dropped.
  */
-export function useMeshFleet(options: { readonly focused: boolean }) {
+export function useLocalMeshFleet(options: {
+  readonly focused: boolean;
+  readonly foregroundOnly?: boolean;
+}) {
   const { alias, status } = useClientCertificateStatus(MESH_HUB_URL);
   const [state, setState] = useState<MeshFleetState>(initialState);
   const request = useRef(0);
 
   const refresh = async () => {
+    if (options.foregroundOnly && !isAppActive()) return;
     const id = ++request.current;
     setState((previous) => ({ ...previous, loading: true }));
     const result = await fetchMeshFleet();
     if (id !== request.current) return;
     if (result.kind === "ok") {
+      const now = Date.now();
       setState({
         fleet: result.fleet,
         request: { path: result.fleet.callerPath, rttMs: result.rttMs },
         problem: null,
         loading: false,
-        now: Date.now(),
+        checkedAt: now,
+        now,
       });
       return;
     }
@@ -70,6 +80,9 @@ export function useMeshFleet(options: { readonly focused: boolean }) {
     if (!options.focused) return;
     // oxlint-disable-next-line react/exhaustive-effect-dependencies, react/set-state-in-effect -- refetch only on focus or alias changes, not on each render's new refresh closure; the loading flag is set as the fetch of the hub's data begins
     void refresh();
+    return () => {
+      request.current += 1;
+    };
   }, [alias, options.focused]);
 
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- the hub-request path is a property of the phone's current network, which only the OS reports
@@ -97,4 +110,18 @@ export function useMeshFleet(options: { readonly focused: boolean }) {
           })),
       ),
   };
+}
+
+export const MeshFleetContext = createContext<ReturnType<typeof useLocalMeshFleet> | null>(null);
+
+export function useMeshFleet(options: { readonly focused: boolean }) {
+  const shared = use(MeshFleetContext);
+  const local = useLocalMeshFleet({ focused: shared === null && options.focused });
+  const hasSharedFleet = shared !== null;
+  const refreshShared = useEffectEvent(() => void shared?.refresh());
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- focusing a fleet screen asks the hub for fresh data
+  useEffect(() => {
+    if (hasSharedFleet && options.focused) refreshShared();
+  }, [hasSharedFleet, options.focused]);
+  return shared ?? local;
 }

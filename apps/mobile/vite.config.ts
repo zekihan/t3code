@@ -68,6 +68,7 @@ const reactTests = [
   "src/features/mesh/MeshConnectionDetails.test.tsx",
   "src/features/mesh/MeshThreadOutcomeNotice.test.tsx",
   "src/features/mesh/useMeshFleet.test.tsx",
+  "src/features/mesh/HomeScreenWidgetProvider.test.tsx",
   "src/features/mesh/MeshEnrollmentView.test.tsx",
   "src/features/mesh/useMeshEnrollment.test.tsx",
   "src/features/mesh/useMeshDirect.test.tsx",

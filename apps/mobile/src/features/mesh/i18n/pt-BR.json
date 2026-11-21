@@ -282,5 +282,12 @@
   "ad1600c20fbcbdc6": "Opções da mesh",
   "bb10e11c59802720": "Os agentes usam versões diferentes: {versions}.",
   "ac515e5e8d25f3d5": "A última solicitação pode ter chegado à máquina. Confira a conversa antes de reenviá-la.",
-  "44134ce49f87ec91": "Atualizar conversa"
+  "44134ce49f87ec91": "Atualizar conversa",
+  "d2f657f18656e0bb": "Direto na rede de casa",
+  "e96213407ce31499": "Pelo visualizador",
+  "16bfa4cf70990b58": "Direto e pelo visualizador",
+  "7215b83aa8954d7b": "{up}/{total} máquinas operacionais",
+  "2f8ddad53e467890": "Status da frota indisponível",
+  "86305beb35bbb486": "Frota ainda não atualizada",
+  "29cd12979dfdf522": "Atualizado: {time}"
 }

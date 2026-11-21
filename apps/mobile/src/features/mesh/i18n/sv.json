@@ -282,5 +282,12 @@
   "ad1600c20fbcbdc6": "Mesh-alternativ",
   "bb10e11c59802720": "Agenterna kör olika versioner: {versions}.",
   "ac515e5e8d25f3d5": "Den senaste begäran kan ha nått datorn. Kontrollera tråden innan du skickar igen.",
-  "44134ce49f87ec91": "Uppdatera tråden"
+  "44134ce49f87ec91": "Uppdatera tråden",
+  "d2f657f18656e0bb": "Direkt i hemnätverket",
+  "e96213407ce31499": "Via visaren",
+  "16bfa4cf70990b58": "Direkt och via visaren",
+  "7215b83aa8954d7b": "{up}/{total} maskiner i drift",
+  "2f8ddad53e467890": "Flottans status är inte tillgänglig",
+  "86305beb35bbb486": "Flottans status har ännu inte uppdaterats",
+  "29cd12979dfdf522": "Uppdaterad: {time}"
 }

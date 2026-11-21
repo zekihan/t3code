@@ -1,6 +1,11 @@
 const fs = require("node:fs");
 const path = require("node:path");
-const { withAppBuildGradle, withDangerousMod } = require("expo/config-plugins");
+const {
+  AndroidConfig,
+  withAndroidManifest,
+  withAppBuildGradle,
+  withDangerousMod,
+} = require("expo/config-plugins");
 
 const MESH_DOMAIN = "mesh.noqer.com";
 
@@ -37,6 +42,15 @@ function applyGradleVersion(contents, versionName, versionCode) {
 // Expo derives versionName from `version`, which must stay upstream's, so Gradle gets it directly.
 /** @param {{ versionName: string, versionCode: number }} props */
 function withMeshNativeMods(config, { versionName, versionCode }) {
+  config = withAndroidManifest(config, (modConfig) => {
+    const { addMetaDataItemToMainApplication, getMainApplicationOrThrow } = AndroidConfig.Manifest;
+    addMetaDataItemToMainApplication(
+      getMainApplicationOrThrow(modConfig.modResults),
+      "expo.modules.widgets.LAUNCH_URL.SubscriptionUsage",
+      `${modConfig.scheme}://settings/mesh`,
+    );
+    return modConfig;
+  });
   const withGradle = withAppBuildGradle(config, (modConfig) => {
     modConfig.modResults.contents = applyGradleVersion(
       modConfig.modResults.contents,

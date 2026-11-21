@@ -282,5 +282,12 @@
   "ad1600c20fbcbdc6": "Mesh options",
   "bb10e11c59802720": "Agents run different versions: {versions}.",
   "ac515e5e8d25f3d5": "The last request may have reached the machine. Check the thread before resending.",
-  "44134ce49f87ec91": "Refresh thread"
+  "44134ce49f87ec91": "Refresh thread",
+  "d2f657f18656e0bb": "Direct at home",
+  "e96213407ce31499": "Via viewer",
+  "16bfa4cf70990b58": "Direct and via viewer",
+  "7215b83aa8954d7b": "{up}/{total} machines up",
+  "2f8ddad53e467890": "Fleet status unavailable",
+  "86305beb35bbb486": "No fleet update yet",
+  "29cd12979dfdf522": "Updated {time}"
 }

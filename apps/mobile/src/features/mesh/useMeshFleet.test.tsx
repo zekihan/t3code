@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   fetch: vi.fn(),
   watch: vi.fn(),
 }));
+vi.mock("../../lib/appState", () => ({ isAppActive: () => true }));
 vi.mock("../../lib/clientCertificates", () => ({
   clientCertificatesAvailable: true,
   chooseClientCertificate: mocks.choose,

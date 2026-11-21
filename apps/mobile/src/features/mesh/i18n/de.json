@@ -282,5 +282,12 @@
   "ad1600c20fbcbdc6": "Mesh-Optionen",
   "bb10e11c59802720": "Die Agenten verwenden unterschiedliche Versionen: {versions}.",
   "ac515e5e8d25f3d5": "Die letzte Anfrage hat den Rechner möglicherweise erreicht. Prüfe den Thread, bevor du sie erneut sendest.",
-  "44134ce49f87ec91": "Thread aktualisieren"
+  "44134ce49f87ec91": "Thread aktualisieren",
+  "d2f657f18656e0bb": "Direkt im Heimnetz",
+  "e96213407ce31499": "Über Viewer",
+  "16bfa4cf70990b58": "Direkt und über Viewer",
+  "7215b83aa8954d7b": "{up}/{total} Geräte online",
+  "2f8ddad53e467890": "Flottenstatus nicht verfügbar",
+  "86305beb35bbb486": "Noch keine Flottendaten",
+  "29cd12979dfdf522": "Aktualisiert: {time}"
 }

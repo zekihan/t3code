@@ -282,5 +282,12 @@
   "ad1600c20fbcbdc6": "Opciones de mesh",
   "bb10e11c59802720": "Los agentes usan versiones diferentes: {versions}.",
   "ac515e5e8d25f3d5": "Es posible que la última solicitud haya llegado a la máquina. Revisa el hilo antes de volver a enviarla.",
-  "44134ce49f87ec91": "Actualizar hilo"
+  "44134ce49f87ec91": "Actualizar hilo",
+  "d2f657f18656e0bb": "Directo en casa",
+  "e96213407ce31499": "A través del visor",
+  "16bfa4cf70990b58": "Directo y a través del visor",
+  "7215b83aa8954d7b": "{up}/{total} equipos operativos",
+  "2f8ddad53e467890": "Estado de la flota no disponible",
+  "86305beb35bbb486": "La flota aún no se ha actualizado",
+  "29cd12979dfdf522": "Actualizado: {time}"
 }

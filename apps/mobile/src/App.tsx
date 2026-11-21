@@ -78,9 +78,11 @@ import {
 } from "./lib/foundation-fast-refresh";
 import { useMobileNavigationTheme } from "./lib/useMobileNavigationTheme";
 import { installUiRuntimeMemoryWarningGc } from "./lib/useUiRuntimeMemoryWarningGc";
-import { SubscriptionUsageCoordinator } from "./widgets/SubscriptionUsageCoordinator";
+import {
+  HomeScreenWidgetProvider,
+  installHomeScreenWidgetRefresh,
+} from "./features/mesh/HomeScreenWidgetProvider";
 import { ConnectDeviceApprovalCoordinator } from "./features/connection/ConnectDeviceApprovalCoordinator";
-import { installSubscriptionUsageRefresh } from "./widgets/useSubscriptionUsage";
 import { GlobalVoiceInputControl } from "./features/voice-input/GlobalVoiceInputControl";
 import {
   launchSplashHomeRowsPending,
@@ -208,7 +210,7 @@ const appServiceDisposers = [
     pendingThreadIdsAtom: threadEnvironment.pendingThreadIdsAtom,
   }),
   installAppearanceRuntime(),
-  installSubscriptionUsageRefresh(),
+  installHomeScreenWidgetRefresh(),
   installPermissionUpdateNotice(),
   installThreadOutboxDelivery(),
   installComposerAttachmentUploads(),
@@ -277,7 +279,9 @@ export default function App() {
       <CloudAuthProvider>
         <AppearancePreferencesProvider>
           <I18nProvider>
-            <AppContent />
+            <HomeScreenWidgetProvider>
+              <AppContent />
+            </HomeScreenWidgetProvider>
           </I18nProvider>
         </AppearancePreferencesProvider>
       </CloudAuthProvider>
@@ -301,7 +305,6 @@ function AppContent() {
     <>
       <SplashScreenCoordinator />
       <QuickActionsLanguage />
-      <SubscriptionUsageCoordinator />
       <ConnectDeviceApprovalCoordinator />
       <GestureHandlerRootView className="flex-1">
         <KeyboardProvider statusBarTranslucent>

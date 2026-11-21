@@ -54,6 +54,30 @@ function pluginName(plugin) {
   return Array.isArray(plugin) ? plugin[0] : plugin;
 }
 
+function configureMeshWidget(plugin) {
+  if (!Array.isArray(plugin) || plugin[0] !== "expo-widgets") return plugin;
+  const [name, options] = plugin;
+  return [
+    name,
+    {
+      ...options,
+      widgets: options.widgets.map((widget) =>
+        widget.name === "SubscriptionUsage"
+          ? {
+              ...widget,
+              displayName: "Mesh fleet status",
+              description: "Fleet health, connection path, and device certificate status.",
+              android: {
+                ...widget.android,
+                initialLayout: "./src/features/mesh/MeshFleetWidget.android.tsx",
+              },
+            }
+          : widget,
+      ),
+    },
+  ];
+}
+
 // Static edits happen here, not in a plugin, so `expo config --type public` and anything else that
 // reads the config without running plugins sees the fork. The native edits live in a plugin entry.
 /** @param {Record<string, string | undefined>} [env] */
@@ -89,10 +113,13 @@ function withMesh(config, env = process.env) {
       [MESH_NATIVE_MODS_PLUGIN, { versionName, versionCode }],
       MESH_STREAM_PLUGIN,
       [MESH_LOCAL_NETWORK_PLUGIN, { targetSdk }],
-      ...(config.plugins ?? []).filter((plugin) => !REMOVED_PLUGINS.has(pluginName(plugin))),
+      ...(config.plugins ?? [])
+        .filter((plugin) => !REMOVED_PLUGINS.has(pluginName(plugin)))
+        .map(configureMeshWidget),
     ],
     extra: {
       ...extra,
+      meshFleetWidget: true,
       relay: { url: null },
       clerk: { publishableKey: null, jwtTemplate: null },
       EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID: undefined,
