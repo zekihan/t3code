@@ -57,7 +57,7 @@ replay="$dir/candidate/apps/server/scripts/dev-replay-agent.ts"
 node - "$(command -v node)" "$replay" "$dir/t3/userdata/settings.json" <<'JS'
 const fs = require("node:fs");
 const [commandPath, script, output] = process.argv.slice(2);
-const drivers = ["codex", "claude", "cursor", "grok", "fx", "opencode", "antigravity", "kiro", "pi", "muse"];
+const drivers = ["codex", "claudeAgent", "cursor", "grok", "fx", "opencode", "antigravity", "kiro", "pi", "muse"];
 const providerInstances = Object.fromEntries(drivers.map(driver => [driver, { driver, enabled: false }]));
 providerInstances.emulatorReplay = {
   displayName: "Rig Replay",

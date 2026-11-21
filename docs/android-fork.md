@@ -532,6 +532,15 @@ directly.
 - **Exit.** No fixed rule; whether to keep the fork is decided case by case. The
   browser on the mesh hosts remains the fallback.
 
+### Scripted emulator check
+
+The [emulator rig](../scripts/emulator-rig/README.md) runs weekly pairing, chat,
+relay reconnect, attachment upload, and the Mesh machines and fleet views
+against an isolated backend. It enrolls the emulator and checks direct chat
+after a cold app start with the hub down. The phone check still covers signed
+release installation and upgrades, deployed machines and network changes, and
+hardware-specific behavior.
+
 ## Milestones
 
 | | Scope | Done when |
