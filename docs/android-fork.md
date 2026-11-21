@@ -71,6 +71,16 @@ the owner's own devices. It builds on the
   `src/features/mesh` and `plugins/withMesh*.cjs`. Upstream files get only small
   hook edits that call into them. One commit per concern: mTLS, app identity, CI,
   then one per mesh feature.
+- **Translations.** Fork copy is wrapped the way upstream's is
+  (`docs/internals/i18n.md`) and kept in its own catalogs, so upstream's
+  `src/i18n/translations` never carry fork keys. `apps/mobile/gt.mesh.config.json`
+  scans `src/features/mesh/**`, `src/lib/certificateMedia.ts` and
+  `src/lib/clientCertificate*`, which upstream's `gt.config.json` excludes, and
+  writes `src/features/mesh/i18n/[locale].json`; `I18nProvider` merges them in.
+  After adding or changing fork copy, regenerate in `apps/mobile` with
+  `./node_modules/.bin/gt generate --config gt.mesh.config.json`, translate the new
+  keys in every locale file by hand, and run `meshCatalogs.test.ts`. A new fork
+  file outside those paths needs adding to both configs.
 - **Base.** Every build rebases the stack onto the newest upstream nightly tag at
   run time, e.g. `v0.1.11-nightly.20261117.4838`, not `main`, so the app matches
   the nightly servers. Upstream tags several nightlies a day, and preview tags share
