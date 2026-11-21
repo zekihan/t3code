@@ -1,4 +1,7 @@
 import { requireOptionalNativeModule } from "expo";
+import { msg } from "gt-react-native";
+
+import { m } from "../i18n/messages";
 
 import type {
   ClientCertificateIdentityProblem,
@@ -52,24 +55,32 @@ export const onClientCertificateIdentityProblem = (
 ): Subscription => native?.addListener("identityProblem", listener) ?? { remove() {} };
 export const chooseClientCertificate = (url: string): Promise<string | null> => {
   if (!native)
-    return Promise.reject(new Error("Client certificates require the Android custom build."));
+    return Promise.reject(
+      new Error(m(msg("Client certificates require the Android custom build."))),
+    );
   return native.choose(url);
 };
 export const removeClientCertificate = (url: string): Promise<void> => {
   if (!native)
-    return Promise.reject(new Error("Client certificates require the Android custom build."));
+    return Promise.reject(
+      new Error(m(msg("Client certificates require the Android custom build."))),
+    );
   return native.remove(url);
 };
 /** Gives `url`'s origin `alias` unless it has an alias the person chose. False when it has one. */
 export const assignMeshClientCertificate = (url: string, alias: string): Promise<boolean> => {
   if (!native)
-    return Promise.reject(new Error("Client certificates require the Android custom build."));
+    return Promise.reject(
+      new Error(m(msg("Client certificates require the Android custom build."))),
+    );
   return native.assignMeshAlias(url, alias);
 };
 /** Removes the alias the Mesh screen assigned to `url`'s origin; true when one was removed. */
 export const releaseMeshClientCertificate = (url: string): Promise<boolean> => {
   if (!native)
-    return Promise.reject(new Error("Client certificates require the Android custom build."));
+    return Promise.reject(
+      new Error(m(msg("Client certificates require the Android custom build."))),
+    );
   return native.releaseMeshAlias(url);
 };
 /** Origins whose alias the Mesh screen assigned. */
@@ -81,7 +92,7 @@ export async function transferWithClientCertificate(
   input: ClientCertificateTransferInput,
 ): Promise<{ status: number } | null> {
   if (!native || !selectedClientCertificate(input.url)) return null;
-  if (input.signal.aborted) throw new Error("Transfer cancelled.");
+  if (input.signal.aborted) throw new Error(m(msg("Transfer cancelled.")));
   const id = native.createTransfer(input.url);
   const cancel = () => native.cancel(id);
   let subscription: Subscription | null = null;
@@ -93,14 +104,14 @@ export async function transferWithClientCertificate(
         })
       : null;
     input.signal.addEventListener("abort", cancel, { once: true });
-    if (input.signal.aborted) throw new Error("Transfer cancelled.");
+    if (input.signal.aborted) throw new Error(m(msg("Transfer cancelled.")));
     const result = await native.transfer(
       id,
       input.fileUri,
       input.upload ?? false,
       input.contentType ?? "application/octet-stream",
     );
-    if (input.signal.aborted) throw new Error("Transfer cancelled.");
+    if (input.signal.aborted) throw new Error(m(msg("Transfer cancelled.")));
     return result;
   } finally {
     input.signal.removeEventListener("abort", cancel);

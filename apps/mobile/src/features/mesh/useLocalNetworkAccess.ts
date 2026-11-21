@@ -1,7 +1,9 @@
 import { Linking } from "react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { msg } from "gt-react-native";
 
 import * as Dialog from "../../components/ui/Dialog";
+import { m } from "../../i18n/messages";
 import * as nativeApi from "./localNetwork";
 import type { LocalNetworkState } from "./localNetwork.types";
 import {
@@ -15,8 +17,10 @@ const confirmWithDialog = (title: string, message: string) =>
     Dialog.confirm({
       title,
       message,
-      cancelText: "Not now",
-      confirmText: "Continue",
+      cancelText: m(msg("Not now")),
+      confirmText: m(
+        msg("Continue", { $context: "button, goes on to the system permission prompt" }),
+      ),
       onConfirm: () => resolve(true),
       onCancel: () => resolve(false),
     }),

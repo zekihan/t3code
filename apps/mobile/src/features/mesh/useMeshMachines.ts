@@ -1,5 +1,7 @@
+import { msg } from "gt-react-native";
 import { useEffect, useRef, useState } from "react";
 
+import { m } from "../../i18n/messages";
 import { chooseClientCertificate, clientCertificatesAvailable } from "../../lib/clientCertificates";
 import { fetchMeshMachines, type MeshFetchResult } from "./meshHub";
 import { nativeMeshAliasApi, syncMeshAliases } from "./meshAliases";
@@ -56,7 +58,8 @@ export function useMeshMachines() {
       try {
         await chooseClientCertificate(MESH_HUB_URL);
       } catch (error) {
-        pickerMessage = error instanceof Error ? error.message : "Could not select a certificate.";
+        pickerMessage =
+          error instanceof Error ? error.message : m(msg("Could not select a certificate."));
       }
     }
     const result = await fetchMeshMachines();
@@ -128,7 +131,8 @@ export function useMeshMachines() {
             ...previous,
             problem: {
               kind: "no-certificate",
-              message: error instanceof Error ? error.message : "Could not select a certificate.",
+              message:
+                error instanceof Error ? error.message : m(msg("Could not select a certificate.")),
             },
           })),
       ),

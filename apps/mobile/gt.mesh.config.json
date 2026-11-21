@@ -1,0 +1,15 @@
+{
+  "defaultLocale": "en",
+  "locales": ["es", "zh", "pt-BR", "fr", "de", "ja", "ko", "ru", "sv"],
+  "src": [
+    "src/features/mesh/**/*.{ts,tsx}",
+    "src/lib/certificateMedia.ts",
+    "src/lib/clientCertificate*.{ts,tsx}",
+    "!**/*.test.{ts,tsx}"
+  ],
+  "files": {
+    "gt": {
+      "output": "src/features/mesh/i18n/[locale].json"
+    }
+  }
+}

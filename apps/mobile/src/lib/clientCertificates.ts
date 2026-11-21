@@ -1,3 +1,6 @@
+import { msg } from "gt-react-native";
+
+import { m } from "../i18n/messages";
 import type {
   ClientCertificateIdentityProblem,
   ClientCertificateStatus,
@@ -8,7 +11,7 @@ import type {
 // Client certificates are Android-only (clientCertificates.android.ts). Elsewhere every
 // destination keeps its existing transport.
 const unsupported = () =>
-  Promise.reject(new Error("Client certificates are only supported on Android."));
+  Promise.reject(new Error(m(msg("Client certificates are only supported on Android."))));
 
 export const clientCertificatesAvailable = false;
 export const selectedClientCertificate = (_url: string): string | null => null;
