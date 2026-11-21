@@ -280,5 +280,7 @@
   "496fe41329b84614": "Tester la connexion directe maintenant",
   "135b3243e0a44839": "Dernières décisions sur la connexion directe",
   "ad1600c20fbcbdc6": "Options mesh",
-  "bb10e11c59802720": "Les agents utilisent différentes versions : {versions}."
+  "bb10e11c59802720": "Les agents utilisent différentes versions : {versions}.",
+  "ac515e5e8d25f3d5": "La dernière requête a peut-être atteint la machine. Vérifiez le fil avant de la renvoyer.",
+  "44134ce49f87ec91": "Actualiser le fil"
 }

@@ -280,5 +280,7 @@
   "496fe41329b84614": "Test direct path now",
   "135b3243e0a44839": "Recent direct-path decisions",
   "ad1600c20fbcbdc6": "Mesh options",
-  "bb10e11c59802720": "Agents run different versions: {versions}."
+  "bb10e11c59802720": "Agents run different versions: {versions}.",
+  "ac515e5e8d25f3d5": "The last request may have reached the machine. Check the thread before resending.",
+  "44134ce49f87ec91": "Refresh thread"
 }

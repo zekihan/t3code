@@ -280,5 +280,7 @@
   "496fe41329b84614": "Direkte Verbindung jetzt testen",
   "135b3243e0a44839": "Letzte Entscheidungen zur direkten Verbindung",
   "ad1600c20fbcbdc6": "Mesh-Optionen",
-  "bb10e11c59802720": "Die Agenten verwenden unterschiedliche Versionen: {versions}."
+  "bb10e11c59802720": "Die Agenten verwenden unterschiedliche Versionen: {versions}.",
+  "ac515e5e8d25f3d5": "Die letzte Anfrage hat den Rechner möglicherweise erreicht. Prüfe den Thread, bevor du sie erneut sendest.",
+  "44134ce49f87ec91": "Thread aktualisieren"
 }

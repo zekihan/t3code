@@ -182,6 +182,7 @@ import type {
 } from "../../lib/threadActivity";
 import { PendingApprovalCard } from "./PendingApprovalCard";
 import { ComposerErrorNotice } from "./ComposerErrorNotice";
+import { MeshThreadOutcomeNotice } from "../mesh/MeshThreadOutcomeNotice";
 import { ManagedRuntimeModeNotice } from "./ManagedRuntimeModeNotice";
 import { FreshSessionNotice } from "./FreshSessionNotice";
 import { ComposerFeedback } from "./ComposerFeedback";
@@ -1778,6 +1779,7 @@ function ThreadDetailBody(
                         />
                       </Animated.View>
                     ) : null}
+                    <MeshThreadOutcomeNotice threadRef={props.selectedThreadDetailRef} />
                     {usageLimitsReport && activeUserInputRequestId === null ? (
                       <Animated.View
                         className="shrink-0 px-4"
