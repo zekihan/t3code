@@ -7,6 +7,9 @@ import java.net.Proxy
 import java.net.ProxySelector
 import java.net.SocketAddress
 import java.net.URI
+import java.util.Collections
+import java.util.WeakHashMap
+import okhttp3.Connection
 import okhttp3.HttpUrl
 import okhttp3.Interceptor
 import okhttp3.Request
@@ -31,8 +34,12 @@ internal interface DirectRouter {
   /** The loopback proxy of the direct path, or null while it is not running. */
   fun relayAddress(): InetSocketAddress?
 
-  /** A request on the direct path failed with [error]; the machine leaves the direct path. */
-  fun directFailed(machine: String, error: IOException)
+  /**
+   * A request on the direct path failed with [error]; the machine leaves the direct path.
+   * [freshConnection] is true when its connection had not carried a response before, so a reset
+   * may be a TLS 1.3 refusal of the client certificate.
+   */
+  fun directFailed(machine: String, error: IOException, freshConnection: Boolean)
 
   /** A request that may have reached the machine failed on the direct path and was not repeated. */
   fun unknownOutcome(machine: String, method: String)
@@ -71,6 +78,8 @@ internal class PathMismatchException : IOException("The connection is on another
 /** What one attempt of a request is told and tells back. */
 internal class Attempt(val direct: Boolean) {
   @Volatile var sent = false
+
+  @Volatile var reused = false
 }
 
 /** The path chosen for the call running on this thread, for the proxy selector to read. */
@@ -142,7 +151,7 @@ internal class DirectRoutingInterceptor(
     error: IOException
   ): ActivePath {
     if (!attempt.direct || chain.call().isCanceled()) throw error
-    router.directFailed(machine, error)
+    router.directFailed(machine, error, freshConnection = !attempt.reused)
     if (attempt.sent && !replaySafe(request.method)) {
       router.unknownOutcome(machine, request.method)
       throw UnknownOutcomeException(request.method, error)
@@ -164,11 +173,13 @@ internal class DirectPathGuard : Interceptor {
   override fun intercept(chain: Interceptor.Chain): Response {
     val request = chain.request()
     val attempt = request.tag(Attempt::class.java) ?: return chain.proceed(request)
-    val tunnelled = chain.connection()?.route()?.proxy?.type() == Proxy.Type.HTTP
+    val connection = chain.connection()
+    val tunnelled = connection?.route()?.proxy?.type() == Proxy.Type.HTTP
     if (tunnelled != attempt.direct) throw PathMismatchException()
+    attempt.reused = connection != null && connection in answered
     attempt.sent = true
     return try {
-      chain.proceed(request)
+      chain.proceed(request).also { if (connection != null) answered += connection }
     } catch (error: IOException) {
       throw if (attempt.direct &&
         !replaySafe(request.method)
@@ -179,6 +190,10 @@ internal class DirectPathGuard : Interceptor {
       }
     }
   }
+
+  // Connections that have carried a response: a reset on one of them is not a refused handshake.
+  private val answered: MutableSet<Connection> =
+    Collections.synchronizedSet(Collections.newSetFromMap(WeakHashMap()))
 }
 
 /**
