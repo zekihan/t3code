@@ -1,3 +1,6 @@
+import { msg } from "gt-react-native";
+
+import { m, type MessageResolver } from "../../i18n/messages";
 import type { EnrollmentFailure, EnrollmentStatus } from "./meshEnrollment.types";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -17,54 +20,62 @@ export const isEnrolledAlias = (alias: string | null | undefined): boolean =>
   typeof alias === "string" && alias.startsWith(ENROLLED_ALIAS_PREFIX);
 
 /** Null when `name` is a valid device identity, else what is wrong with it. */
-export function identityProblem(name: string): string | null {
-  if (name.length === 0) return "Enter this device's name.";
-  if (name.length > MAX_IDENTITY_LENGTH) return "That name is too long.";
+export function identityProblem(name: string, resolve: MessageResolver = m): string | null {
+  if (name.length === 0) return resolve(msg("Enter this device's name."));
+  if (name.length > MAX_IDENTITY_LENGTH) return resolve(msg("That name is too long."));
   if (DEVICE_IDENTITY.test(name)) return null;
-  return "Use the form device-z-phone-mesh: lowercase letters, digits and hyphens, starting with device- and ending with -mesh.";
+  return resolve(
+    msg(
+      "Use the form {example}: lowercase letters, digits and hyphens, starting with {prefix} and ending with {suffix}.",
+      { example: "device-z-phone-mesh", prefix: "device-", suffix: "-mesh" },
+    ),
+  );
 }
 
 const TITLES: Readonly<Record<string, string>> = {
-  INVALID_IDENTITY: "Not a device name",
-  TOKEN_REQUIRED: "Token needed",
-  NETWORK: "Network problem",
-  TLS: "Could not verify the hub",
-  NO_ENROLLMENT_OPEN: "No enrollment is open",
-  TOKEN_INVALID: "Token expired or already used",
-  TOKEN_IDENTITY: "Token is for another identity",
-  IDENTITY_NOT_ALLOWED: "Identity not allowed",
-  CSR_REJECTED: "Request refused",
-  RATE_LIMITED: "Too many attempts",
-  ISSUANCE_FAILED: "The hub could not issue a certificate",
-  HUB_ERROR: "The hub refused",
-  BAD_REPLY: "Unexpected answer from the hub",
-  KEYSTORE: "Keystore problem",
-  REENROLL_REQUIRED: "Re-enroll this device",
-  NOT_ENROLLED: "Not enrolled",
-  BUSY: "Another operation is running",
+  INVALID_IDENTITY: msg("Not a device name"),
+  TOKEN_REQUIRED: msg("Token needed"),
+  NETWORK: msg("Network problem"),
+  TLS: msg("Could not verify the hub"),
+  NO_ENROLLMENT_OPEN: msg("No enrollment is open"),
+  TOKEN_INVALID: msg("Token expired or already used"),
+  TOKEN_IDENTITY: msg("Token is for another identity"),
+  IDENTITY_NOT_ALLOWED: msg("Identity not allowed"),
+  CSR_REJECTED: msg("Request refused"),
+  RATE_LIMITED: msg("Too many attempts"),
+  ISSUANCE_FAILED: msg("The hub could not issue a certificate"),
+  HUB_ERROR: msg("The hub refused"),
+  BAD_REPLY: msg("Unexpected answer from the hub"),
+  KEYSTORE: msg("Keystore problem"),
+  REENROLL_REQUIRED: msg("Re-enroll this device"),
+  NOT_ENROLLED: msg("Not enrolled"),
+  BUSY: msg("Another operation is running"),
 };
 
 /** An error from the native module as a title and the native message. */
-export function describeEnrollmentFailure(error: unknown): EnrollmentFailure {
+export function describeEnrollmentFailure(
+  error: unknown,
+  resolve: MessageResolver = m,
+): EnrollmentFailure {
   const code =
     typeof error === "object" && error !== null && "code" in error && typeof error.code === "string"
       ? error.code
       : "UNKNOWN";
   const detail =
-    error instanceof Error && error.message ? error.message : "Something went wrong. Try again.";
-  return { code, title: TITLES[code] ?? "Enrollment failed", detail };
+    error instanceof Error && error.message
+      ? error.message
+      : resolve(msg("Something went wrong. Try again."));
+  return { code, title: resolve(TITLES[code] ?? msg("Enrollment failed")), detail };
 }
 
 const formatDay = (epochMs: number) =>
   new Date(epochMs).toLocaleDateString("en", { year: "numeric", month: "short", day: "numeric" });
 
-const plural = (count: number, unit: string) => `${count} ${unit}${count === 1 ? "" : "s"}`;
-
 const PROTECTION_LABELS = {
-  strongbox: "Held in the secure chip (StrongBox). It cannot be exported.",
-  tee: "Held in the Android Keystore's secure hardware. It cannot be exported.",
-  software: "Held in the Android Keystore, in software on this device. It cannot be exported.",
-  unknown: "Held in the Android Keystore. It cannot be exported.",
+  strongbox: msg("Held in the secure chip (StrongBox). It cannot be exported."),
+  tee: msg("Held in the Android Keystore's secure hardware. It cannot be exported."),
+  software: msg("Held in the Android Keystore, in software on this device. It cannot be exported."),
+  unknown: msg("Held in the Android Keystore. It cannot be exported."),
 } as const;
 
 interface EnrollmentSummary {
@@ -79,60 +90,79 @@ interface EnrollmentSummary {
 }
 
 /** The status line the Mesh screen shows: identity, expiry and the next renewal. */
-export function summarizeEnrollment(status: EnrollmentStatus, now: number): EnrollmentSummary {
+export function summarizeEnrollment(
+  status: EnrollmentStatus,
+  now: number,
+  resolve: MessageResolver = m,
+): EnrollmentSummary {
   const daysLeft = Math.ceil((status.notAfter - now) / DAY);
   const expires =
     status.notAfter <= now
-      ? `Expired on ${formatDay(status.notAfter)}`
-      : `Expires ${formatDay(status.notAfter)} (${plural(daysLeft, "day")} left)`;
+      ? resolve(msg("Expired on {date}", { date: formatDay(status.notAfter) }))
+      : resolve(
+          msg("Expires {date} ({count, plural, one {{count} day} other {{count} days}} left)", {
+            date: formatDay(status.notAfter),
+            count: daysLeft,
+          }),
+        );
   const renewal =
     status.state !== "valid"
-      ? "Not renewing: this device must be enrolled again."
+      ? resolve(msg("Not renewing: this device must be enrolled again."))
       : status.renewalDue
-        ? "Renewal is due. It runs when the app next opens, or tap Renew now."
-        : `Renews automatically from ${formatDay(status.renewAt)}.`;
+        ? resolve(msg("Renewal is due. It runs when the app next opens, or tap Renew now."))
+        : resolve(msg("Renews automatically from {date}.", { date: formatDay(status.renewAt) }));
   const reenroll: Record<string, string> = {
-    reenroll:
+    reenroll: msg(
       "The hub no longer accepts this device's certificate, for example because a renewal went through but its answer was lost. Re-enroll this device with a new token.",
-    expired: "The certificate has expired. Re-enroll this device with a new token.",
-    "key-missing":
+    ),
+    expired: msg("The certificate has expired. Re-enroll this device with a new token."),
+    "key-missing": msg(
       "The key is no longer in the Android Keystore (a screen lock or biometric change can remove it). Re-enroll this device with a new token.",
+    ),
   };
+  const needsReenroll = reenroll[status.state];
   return {
-    headline: `Enrolled as ${status.identity}`,
+    headline: resolve(msg("Enrolled as {identity}", { identity: status.identity })),
     expires,
     renewal,
     key: status.exportable
-      ? "Warning: this key could be read out of the Keystore. Re-enroll this device."
-      : PROTECTION_LABELS[status.protection],
+      ? resolve(msg("Warning: this key could be read out of the Keystore. Re-enroll this device."))
+      : resolve(PROTECTION_LABELS[status.protection]),
     previous: status.previous
-      ? `The previous key is kept until ${formatDay(status.previous.keepUntil)}.`
+      ? resolve(
+          msg("The previous key is kept until {date}.", {
+            date: formatDay(status.previous.keepUntil),
+          }),
+        )
       : null,
     lastRenewalProblem:
       status.lastError === null
         ? null
         : status.lastError === "offline"
-          ? "The last renewal check could not reach the hub. It will try again."
-          : `The last renewal check failed (${status.lastError}).`,
-    needsReenroll: reenroll[status.state] ?? null,
+          ? resolve(msg("The last renewal check could not reach the hub. It will try again."))
+          : resolve(msg("The last renewal check failed ({error}).", { error: status.lastError })),
+    needsReenroll: needsReenroll === undefined ? null : resolve(needsReenroll),
   };
 }
 
 /** What a finished renewal means to the person who asked for it. */
-export function renewNotice(result: {
-  readonly outcome: string;
-  readonly message?: string;
-}): string {
+export function renewNotice(
+  result: {
+    readonly outcome: string;
+    readonly message?: string;
+  },
+  resolve: MessageResolver = m,
+): string {
   switch (result.outcome) {
     case "renewed":
-      return "Renewed. The previous key stays for a week.";
+      return resolve(msg("Renewed. The previous key stays for a week."));
     case "not-due":
-      return "Nothing to renew yet.";
+      return resolve(msg("Nothing to renew yet."));
     case "throttled":
-      return "A renewal check already ran recently.";
+      return resolve(msg("A renewal check already ran recently."));
     case "not-enrolled":
-      return "This device is not enrolled.";
+      return resolve(msg("This device is not enrolled."));
     default:
-      return result.message ?? "Renewal failed.";
+      return result.message ?? resolve(msg("Renewal failed."));
   }
 }

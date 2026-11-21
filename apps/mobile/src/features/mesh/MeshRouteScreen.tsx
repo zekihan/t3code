@@ -1,5 +1,6 @@
 import { useIsFocused, useNavigation } from "@react-navigation/native";
 import type { EnvironmentId } from "@t3tools/contracts";
+import { useGT, useMessages } from "gt-react-native";
 import { useEffect, useState } from "react";
 import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -17,6 +18,7 @@ import type { MeshMachine } from "./meshMachines";
 import { MeshEnrollmentView } from "./MeshEnrollmentView";
 import { MeshFleetView } from "./MeshFleetView";
 import { MeshMachinesView } from "./MeshMachinesView";
+import { MESH_ROUTE_TITLE } from "./meshSettingsRow";
 import { LOCAL_NETWORK_DENIED } from "./localNetworkLogic";
 import { useLocalNetworkAccess } from "./useLocalNetworkAccess";
 import { useMeshEnrollment } from "./useMeshEnrollment";
@@ -28,6 +30,8 @@ import { useMeshMachines } from "./useMeshMachines";
  * status for them, and this device's enrolled identity.
  */
 export function MeshRouteScreen() {
+  const gt = useGT();
+  const m = useMessages();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { connectedEnvironments, onChangeConnectionPairingUrl } = useRemoteConnections();
@@ -64,15 +68,15 @@ export function MeshRouteScreen() {
 
   return (
     <SettingsScreen
-      title="Mesh"
+      title={m(MESH_ROUTE_TITLE)}
       actions={[
         {
           accessibilityLabel:
             tab === "device"
-              ? "Refresh enrollment"
+              ? gt("Refresh enrollment")
               : tab === "fleet"
-                ? "Refresh fleet"
-                : "Refresh machines",
+                ? gt("Refresh fleet")
+                : gt("Refresh machines"),
           icon: "arrow.clockwise",
           disabled:
             tab === "device"
@@ -93,13 +97,13 @@ export function MeshRouteScreen() {
         refreshControl={<RefreshControl refreshing={pulled} onRefresh={pull} />}
       >
         {enrolled && localNetwork.state === "denied" ? (
-          <View className="gap-2 pb-3" accessibilityLabel="Local network access denied">
-            <Text className="text-sm text-danger-foreground">{LOCAL_NETWORK_DENIED}</Text>
+          <View className="gap-2 pb-3" accessibilityLabel={gt("Local network access denied")}>
+            <Text className="text-sm text-danger-foreground">{m(LOCAL_NETWORK_DENIED)}</Text>
             <View className="flex-row">
               <Button
                 tone="secondary"
                 size="compact"
-                label="Settings"
+                label={gt("Settings", { $context: "button that opens the system app settings" })}
                 onPress={localNetwork.openSettings}
               />
             </View>
@@ -109,9 +113,9 @@ export function MeshRouteScreen() {
           <SegmentedControl
             variant="standalone"
             options={[
-              { value: "machines", label: "Machines" },
-              { value: "fleet", label: "Fleet" },
-              { value: "device", label: "Device" },
+              { value: "machines", label: gt("Machines", { $context: "Mesh screen tab" }) },
+              { value: "fleet", label: gt("Fleet", { $context: "Mesh screen tab" }) },
+              { value: "device", label: gt("Device", { $context: "Mesh screen tab" }) },
             ]}
             selected={tab}
             onSelect={setTab}
@@ -127,7 +131,9 @@ export function MeshRouteScreen() {
         ) : tab === "fleet" ? (
           <MeshFleetView
             state={fleet.state}
-            certificateWarning={fleet.alias ? clientCertificateWarning(fleet.status) : null}
+            certificateWarning={
+              fleet.alias ? clientCertificateWarning(fleet.status, undefined, m) : null
+            }
             onChooseCertificate={() => void fleet.chooseCertificate()}
             onRetry={() => void fleet.refresh()}
           />
@@ -136,7 +142,9 @@ export function MeshRouteScreen() {
             state={mesh.state}
             now={mesh.state.now}
             paired={paired}
-            certificateWarning={mesh.alias ? clientCertificateWarning(mesh.status) : null}
+            certificateWarning={
+              mesh.alias ? clientCertificateWarning(mesh.status, undefined, m) : null
+            }
             onOpen={open}
             onPair={pair}
             onChooseCertificate={() => void mesh.chooseCertificate()}

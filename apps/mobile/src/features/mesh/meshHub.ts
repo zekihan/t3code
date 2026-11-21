@@ -1,3 +1,6 @@
+import { msg } from "gt-react-native";
+
+import { m } from "../../i18n/messages";
 import {
   clientCertificatesAvailable,
   selectedClientCertificate,
@@ -59,7 +62,10 @@ async function getFromHub<T>(
       return { kind: "refused", status: response.status };
     }
     if (!response.ok) {
-      return { kind: "unavailable", message: `The hub answered HTTP ${response.status}.` };
+      return {
+        kind: "unavailable",
+        message: m(msg("The hub answered HTTP {status}.", { status: String(response.status) })),
+      };
     }
     const value = parse(await response.json());
     if (value === null) return { kind: "unavailable", message: notAnAnswer };
@@ -70,10 +76,10 @@ async function getFromHub<T>(
     return {
       kind: "unavailable",
       message: controller.signal.aborted
-        ? "The hub did not answer in time."
+        ? m(msg("The hub did not answer in time."))
         : error instanceof Error && error.message
           ? error.message
-          : "Could not reach the hub.",
+          : m(msg("Could not reach the hub.")),
     };
   } finally {
     clearTimeout(timeout);
@@ -85,7 +91,7 @@ export async function fetchMeshMachines(deps: MeshFetchDeps = {}): Promise<MeshF
   const result = await getFromHub(
     MESH_MACHINES_URL,
     parseMeshMachines,
-    "The hub's answer was not a machine list.",
+    m(msg("The hub's answer was not a machine list.")),
     deps,
   );
   return result.kind === "ok" ? { kind: "ok", machines: result.value } : result;
@@ -108,7 +114,7 @@ export async function fetchMeshFleet(deps: MeshFetchDeps = {}): Promise<MeshFlee
   const result = await getFromHub(
     MESH_FLEET_URL,
     parseMeshFleet,
-    "The hub's answer was not a fleet status.",
+    m(msg("The hub's answer was not a fleet status.")),
     deps,
   );
   return result.kind === "ok" ? { kind: "ok", fleet: result.value, rttMs: result.rttMs } : result;

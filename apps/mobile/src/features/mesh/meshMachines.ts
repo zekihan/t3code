@@ -1,3 +1,6 @@
+import { msg } from "gt-react-native";
+
+import { m, type MessageResolver } from "../../i18n/messages";
 import { meshViewerOrigin } from "./meshViewerUrl";
 
 export interface MeshMachine {
@@ -71,12 +74,16 @@ export function serializeMeshMachines(machines: readonly MeshMachine[]): string 
 }
 
 /** "just now", "5m ago", "3h ago", "2d ago"; "never seen" when the hub has no time. */
-export function formatLastSeen(lastSeen: number | null, now: number): string {
-  if (lastSeen === null) return "Never seen";
+export function formatLastSeen(
+  lastSeen: number | null,
+  now: number,
+  resolve: MessageResolver = m,
+): string {
+  if (lastSeen === null) return resolve(msg("Never seen"));
   const minutes = Math.floor(Math.max(0, now - lastSeen) / 60_000);
-  if (minutes < 1) return "Seen just now";
-  if (minutes < 60) return `Seen ${minutes}m ago`;
+  if (minutes < 1) return resolve(msg("Seen just now"));
+  if (minutes < 60) return resolve(msg("Seen {minutes}m ago", { minutes: String(minutes) }));
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `Seen ${hours}h ago`;
-  return `Seen ${Math.floor(hours / 24)}d ago`;
+  if (hours < 24) return resolve(msg("Seen {hours}h ago", { hours: String(hours) }));
+  return resolve(msg("Seen {days}d ago", { days: String(Math.floor(hours / 24)) }));
 }

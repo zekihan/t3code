@@ -5,7 +5,10 @@
     "src/**/*.{ts,tsx}",
     "../../packages/client-runtime/src/**/*.{ts,tsx}",
     "../../packages/shared/src/**/*.{ts,tsx}",
-    "!**/*.test.{ts,tsx}"
+    "!**/*.test.{ts,tsx}",
+    "!src/features/mesh/**",
+    "!src/lib/certificateMedia.ts",
+    "!src/lib/clientCertificate*.{ts,tsx}"
   ],
   "files": {
     "gt": {

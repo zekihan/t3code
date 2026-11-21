@@ -1,5 +1,7 @@
+import { msg } from "gt-react-native";
 import { useEffect, useState } from "react";
 
+import { m } from "../../i18n/messages";
 import * as enrollmentApi from "./meshEnrollment";
 import type { EnrollmentFailure, EnrollmentStatus, RenewResult } from "./meshEnrollment.types";
 import { describeEnrollmentFailure, renewNotice } from "./meshEnrollmentLogic";
@@ -121,7 +123,11 @@ export function useMeshEnrollment(api: MeshEnrollmentApi = nativeEnrollmentApi) 
     remove: async () => {
       const result = await run("remove", () => api.removeEnrollment());
       if (result.ok) {
-        setState((previous) => ({ ...previous, status: null, notice: "Enrollment removed." }));
+        setState((previous) => ({
+          ...previous,
+          status: null,
+          notice: m(msg("Enrollment removed.")),
+        }));
       }
     },
   };

@@ -1,3 +1,6 @@
+import { msg } from "gt-react-native";
+
+import { m, type MessageResolver } from "../../i18n/messages";
 import { meshViewerOrigin } from "./meshViewerUrl";
 
 /** Which of the hub's two entrypoints a connection came in on. */
@@ -97,20 +100,36 @@ const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 
-export function formatPath(path: MeshPath | null): string {
-  return path ?? "unknown";
+export function formatPath(path: MeshPath | null, resolve: MessageResolver = m): string {
+  return path ?? resolve(msg("unknown", { $context: "network path of a connection" }));
 }
 
 /** "Up 3h 12m", "Up 2d 4h"; null when the hub gave no start time. */
-export function formatTunnelUptime(connectedSince: number | null, now: number): string | null {
+export function formatTunnelUptime(
+  connectedSince: number | null,
+  now: number,
+  resolve: MessageResolver = m,
+): string | null {
   if (connectedSince === null) return null;
   const elapsed = Math.max(0, now - connectedSince);
-  if (elapsed < MINUTE) return "Up less than a minute";
-  if (elapsed < HOUR) return `Up ${Math.floor(elapsed / MINUTE)}m`;
-  if (elapsed < DAY) {
-    return `Up ${Math.floor(elapsed / HOUR)}h ${Math.floor((elapsed % HOUR) / MINUTE)}m`;
+  if (elapsed < MINUTE) return resolve(msg("Up less than a minute"));
+  if (elapsed < HOUR) {
+    return resolve(msg("Up {minutes}m", { minutes: String(Math.floor(elapsed / MINUTE)) }));
   }
-  return `Up ${Math.floor(elapsed / DAY)}d ${Math.floor((elapsed % DAY) / HOUR)}h`;
+  if (elapsed < DAY) {
+    return resolve(
+      msg("Up {hours}h {minutes}m", {
+        hours: String(Math.floor(elapsed / HOUR)),
+        minutes: String(Math.floor((elapsed % HOUR) / MINUTE)),
+      }),
+    );
+  }
+  return resolve(
+    msg("Up {days}d {hours}h", {
+      days: String(Math.floor(elapsed / DAY)),
+      hours: String(Math.floor((elapsed % DAY) / HOUR)),
+    }),
+  );
 }
 
 export interface CertificateExpiry {
@@ -119,61 +138,91 @@ export interface CertificateExpiry {
   readonly warn: boolean;
 }
 
-function plural(count: number, unit: string) {
-  return `${count} ${unit}${count === 1 ? "" : "s"}`;
-}
-
 /** "Certificate expires in 12 days", warning under 30 days; "expired 3 days ago" once past. */
 export function formatCertificateExpiry(
   certNotAfter: number | null,
   now: number,
+  resolve: MessageResolver = m,
 ): CertificateExpiry {
-  if (certNotAfter === null) return { label: "Certificate expiry unknown", warn: false };
+  if (certNotAfter === null)
+    return { label: resolve(msg("Certificate expiry unknown")), warn: false };
   const remaining = certNotAfter - now;
   if (remaining <= 0) {
     const ago = -remaining;
     const label =
       ago < HOUR
-        ? "Certificate expired just now"
+        ? resolve(msg("Certificate expired just now"))
         : ago < DAY
-          ? `Certificate expired ${plural(Math.floor(ago / HOUR), "hour")} ago`
-          : `Certificate expired ${plural(Math.floor(ago / DAY), "day")} ago`;
+          ? resolve(
+              msg(
+                "{count, plural, one {Certificate expired {count} hour ago} other {Certificate expired {count} hours ago}}",
+                { count: Math.floor(ago / HOUR) },
+              ),
+            )
+          : resolve(
+              msg(
+                "{count, plural, one {Certificate expired {count} day ago} other {Certificate expired {count} days ago}}",
+                { count: Math.floor(ago / DAY) },
+              ),
+            );
     return { label, warn: true };
   }
   const label =
     remaining < HOUR
-      ? "Certificate expires in under an hour"
+      ? resolve(msg("Certificate expires in under an hour"))
       : remaining < DAY
-        ? `Certificate expires in ${plural(Math.floor(remaining / HOUR), "hour")}`
-        : `Certificate expires in ${plural(Math.floor(remaining / DAY), "day")}`;
+        ? resolve(
+            msg(
+              "{count, plural, one {Certificate expires in {count} hour} other {Certificate expires in {count} hours}}",
+              { count: Math.floor(remaining / HOUR) },
+            ),
+          )
+        : resolve(
+            msg(
+              "{count, plural, one {Certificate expires in {count} day} other {Certificate expires in {count} days}}",
+              { count: Math.floor(remaining / DAY) },
+            ),
+          );
   return { label, warn: remaining < CERT_WARNING_DAYS * DAY };
 }
 
 const ALERT_LABELS: Readonly<Record<string, string>> = {
-  "cert-expiry": "Certificate expiring",
-  disconnected: "Disconnected",
+  "cert-expiry": msg("Certificate expiring", { $context: "machine alert" }),
+  disconnected: msg("Disconnected", { $context: "machine alert" }),
 };
 
-export function formatAlert(alert: string): string {
-  return ALERT_LABELS[alert] ?? alert;
+/** A known alert in the current language; an alert the app does not know is the hub's own text. */
+export function formatAlert(alert: string, resolve: MessageResolver = m): string {
+  const label = ALERT_LABELS[alert];
+  return label === undefined ? alert : resolve(label);
 }
 
-export function formatRtt(rttMs: number): string {
-  return `${Math.max(0, Math.round(rttMs))} ms`;
+export function formatRtt(rttMs: number, resolve: MessageResolver = m): string {
+  return resolve(
+    msg("{rtt} ms", {
+      rtt: String(Math.max(0, Math.round(rttMs))),
+      $context: "round-trip time in milliseconds",
+    }),
+  );
 }
 
 /**
  * The phone's hub request, labelled as what it is. The viewer connection is a different
  * connection and can take the other path (split DNS, a network change, a pooled connection).
  */
-export function describeHubRequest(request: MeshHubRequest): {
+export function describeHubRequest(
+  request: MeshHubRequest,
+  resolve: MessageResolver = m,
+): {
   readonly path: string;
   readonly rtt: string;
   readonly note: string;
 } {
   return {
-    path: `Hub request path: ${formatPath(request.path)}`,
-    rtt: `Round-trip time: ${formatRtt(request.rttMs)}`,
-    note: "This phone's last request to the hub; the viewer connection can use a different path.",
+    path: resolve(msg("Hub request path: {path}", { path: formatPath(request.path, resolve) })),
+    rtt: resolve(msg("Round-trip time: {rtt}", { rtt: formatRtt(request.rttMs, resolve) })),
+    note: resolve(
+      msg("This phone's last request to the hub; the viewer connection can use a different path."),
+    ),
   };
 }

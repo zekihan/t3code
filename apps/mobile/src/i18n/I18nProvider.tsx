@@ -5,6 +5,7 @@ import { GTProvider, initializeGT, useLocale } from "gt-react-native";
 import { createContext, use, useDeferredValue, useEffect, useMemo, type ReactNode } from "react";
 import { Platform, TurboModuleRegistry, View, type TurboModule } from "react-native";
 
+import { withMeshCatalog } from "../features/mesh/meshCatalogs";
 import { mobilePreferencesAtom } from "../state/preferences";
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from "./locales";
 import { setActiveLocale } from "./messages";
@@ -33,7 +34,7 @@ const CATALOGS: Readonly<Record<string, () => unknown>> = {
 initializeGT({
   defaultLocale: DEFAULT_LOCALE,
   locales: [...SUPPORTED_LOCALES],
-  loadTranslations: async (locale: string) => CATALOGS[locale]?.() ?? {},
+  loadTranslations: async (locale: string) => withMeshCatalog(locale, CATALOGS[locale]?.() ?? {}),
   // Loaded catalogs never go stale; GT's default 60 s expiry would only reload the same file.
   cacheExpiryTime: null,
 });

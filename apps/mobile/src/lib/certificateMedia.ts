@@ -1,3 +1,6 @@
+import { msg } from "gt-react-native";
+
+import { m } from "../i18n/messages";
 import { selectedClientCertificate, transferWithClientCertificate } from "./clientCertificates";
 
 /**
@@ -11,7 +14,7 @@ export async function loadCertificateMedia(
   options: { readonly extension?: string } = {},
 ): Promise<{ uri: string; dispose(): void }> {
   if (!selectedClientCertificate(uri)) return { uri, dispose() {} };
-  if (signal.aborted) throw new Error("Media download cancelled.");
+  if (signal.aborted) throw new Error(m(msg("Media download cancelled.")));
   const [{ File, Paths }, { uuidv4 }] = await Promise.all([
     import("expo-file-system"),
     import("./uuid"),
@@ -22,8 +25,8 @@ export async function loadCertificateMedia(
   };
   try {
     const result = await transferWithClientCertificate({ url: uri, fileUri: file.uri, signal });
-    if (result === null) throw new Error("Certificate selection changed. Try again.");
-    if (signal.aborted) throw new Error("Media download cancelled.");
+    if (result === null) throw new Error(m(msg("Certificate selection changed. Try again.")));
+    if (signal.aborted) throw new Error(m(msg("Media download cancelled.")));
     return { uri: file.uri, dispose };
   } catch (error) {
     dispose();

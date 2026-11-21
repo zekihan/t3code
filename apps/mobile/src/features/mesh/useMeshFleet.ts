@@ -1,5 +1,7 @@
+import { msg } from "gt-react-native";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 
+import { m } from "../../i18n/messages";
 import { chooseClientCertificate } from "../../lib/clientCertificates";
 import type { MeshFleet, MeshHubRequest } from "./meshFleet";
 import { fetchMeshFleet } from "./meshHub";
@@ -89,7 +91,8 @@ export function useMeshFleet(options: { readonly focused: boolean }) {
             ...previous,
             problem: {
               kind: "no-certificate",
-              message: error instanceof Error ? error.message : "Could not select a certificate.",
+              message:
+                error instanceof Error ? error.message : m(msg("Could not select a certificate.")),
             },
           })),
       ),
