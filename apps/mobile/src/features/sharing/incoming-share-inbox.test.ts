@@ -56,6 +56,47 @@ function createHarness(overrides: Partial<IncomingShareInboxDependencies> = {}) 
 }
 
 describe("IncomingShareInbox", () => {
+  it("opens a resolved thread without drafting or clearing a newer handoff", async () => {
+    const open = vi.fn();
+    const clearPayloads = vi.fn();
+    const buildDraft = vi.fn();
+    const probed = deferred();
+    const started = deferred();
+    let payloads = [PAYLOAD];
+    const { inbox } = createHarness({
+      getPayloads: () => payloads,
+      clearPayloads,
+      buildDraft,
+      resolveSharedThread: async () => {
+        started.resolve();
+        await probed.promise;
+        return open;
+      },
+    });
+    const refresh = inbox.refresh({ ingestNative: true });
+    await started.promise;
+    payloads = [{ ...PAYLOAD, value: "New share" }];
+    probed.resolve();
+    await expect(refresh).resolves.toEqual([]);
+    expect(open).toHaveBeenCalledOnce();
+    expect(buildDraft).not.toHaveBeenCalled();
+    expect(clearPayloads).not.toHaveBeenCalled();
+  });
+
+  it("keeps a failed thread handoff for retry and clears it after a successful probe", async () => {
+    const open = vi.fn();
+    const clearPayloads = vi.fn();
+    const failure = new Error("Missing certificate");
+    const resolveSharedThread = vi.fn().mockRejectedValueOnce(failure).mockResolvedValueOnce(open);
+    const { inbox } = createHarness({ clearPayloads, resolveSharedThread });
+    await expect(inbox.refresh({ ingestNative: true })).rejects.toBe(failure);
+    expect(clearPayloads).not.toHaveBeenCalled();
+    expect(open).not.toHaveBeenCalled();
+    await expect(inbox.refresh({ ingestNative: true })).resolves.toEqual([]);
+    expect(open).toHaveBeenCalledOnce();
+    expect(clearPayloads).toHaveBeenCalledOnce();
+  });
+
   it("coalesces a replay of an already-persisted native handoff", async () => {
     const buildDraft = vi.fn(async ({ id, createdAt }) => ({
       draft: draft(id, createdAt),

@@ -219,6 +219,7 @@
   "0e9e2e2960486084": "{host} hat mit HTTP {status} geantwortet: Dieses Zertifikat ist nicht zugelassen. Wähle ein anderes aus, falls du eines hast.",
   "8b8c365a45f56813": "Mesh",
   "ed8d2f800f1ae554": "Mesh",
+  "0dd3b2a6db244763": "Dieser Mesh-Link benötigt das Client-Zertifikat dieses Geräts. Prüfe die Geräteregistrierung in Mesh oder wähle das Zertifikat in den erweiterten Einstellungen der Umgebung aus. Versuche es dann erneut.",
   "f746b1e0bfb2ec4a": "Nicht jetzt",
   "ec0ff9e9b0d329e0": "Weiter",
   "e31bffe1b264deac": "Registrierung entfernt.",

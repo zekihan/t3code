@@ -16,6 +16,9 @@ export interface IncomingShareInboxDependencies {
   readonly removeDraft: (shareId: string) => Promise<void>;
   readonly getPayloads: () => ReadonlyArray<SharePayload>;
   readonly clearPayloads: () => void;
+  readonly resolveSharedThread?: (
+    payloads: ReadonlyArray<SharePayload>,
+  ) => Promise<(() => void) | null>;
   readonly buildDraft: (input: {
     readonly payloads: ReadonlyArray<SharePayload>;
     readonly id: string;
@@ -83,6 +86,24 @@ export class IncomingShareInbox {
 
       const payloads = this.dependencies.getPayloads();
       if (payloads.length === 0) {
+        return persisted;
+      }
+
+      const openThread = await this.dependencies.resolveSharedThread?.(payloads);
+      if (openThread) {
+        const current = this.dependencies.getPayloads();
+        if (
+          current.length === payloads.length &&
+          current.every(
+            (payload, index) =>
+              payload.value === payloads[index]?.value &&
+              payload.shareType === payloads[index]?.shareType &&
+              payload.mimeType === payloads[index]?.mimeType,
+          )
+        ) {
+          this.clearNativePayloads();
+        }
+        openThread();
         return persisted;
       }
 

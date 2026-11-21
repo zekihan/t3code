@@ -219,6 +219,7 @@
   "0e9e2e2960486084": "{host} respondeu HTTP {status}: este certificado não é aceito. Selecione outro, se tiver.",
   "8b8c365a45f56813": "Mesh",
   "ed8d2f800f1ae554": "Mesh",
+  "0dd3b2a6db244763": "Este link do Mesh exige o certificado de cliente deste dispositivo. Verifique o registro do dispositivo no Mesh ou selecione o certificado nas configurações avançadas do ambiente. Depois, tente novamente.",
   "f746b1e0bfb2ec4a": "Agora não",
   "ec0ff9e9b0d329e0": "Continuar",
   "e31bffe1b264deac": "Registro removido.",

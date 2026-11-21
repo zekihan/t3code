@@ -219,6 +219,7 @@
   "0e9e2e2960486084": "{host} svarade HTTP {status}: certifikatet är inte godkänt. Välj ett annat om du har ett.",
   "8b8c365a45f56813": "Mesh",
   "ed8d2f800f1ae554": "Mesh",
+  "0dd3b2a6db244763": "Den här Mesh-länken kräver enhetens klientcertifikat. Kontrollera enhetsregistreringen i Mesh eller välj certifikatet i miljöns avancerade inställningar och försök sedan igen.",
   "f746b1e0bfb2ec4a": "Inte nu",
   "ec0ff9e9b0d329e0": "Fortsätt",
   "e31bffe1b264deac": "Registreringen togs bort.",

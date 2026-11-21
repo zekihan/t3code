@@ -219,6 +219,7 @@
   "0e9e2e2960486084": "{host} answered HTTP {status}: this certificate is not admitted. Select another one if you have it.",
   "8b8c365a45f56813": "Mesh",
   "ed8d2f800f1ae554": "Mesh",
+  "0dd3b2a6db244763": "This mesh link needs this device's client certificate. Check device enrollment in Mesh or select the certificate in the environment's Advanced settings, then retry.",
   "f746b1e0bfb2ec4a": "Not now",
   "ec0ff9e9b0d329e0": "Continue",
   "e31bffe1b264deac": "Enrollment removed.",

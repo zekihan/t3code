@@ -219,6 +219,7 @@
   "0e9e2e2960486084": "{host} respondió HTTP {status}: este certificado no está admitido. Selecciona otro si lo tienes.",
   "8b8c365a45f56813": "Mesh",
   "ed8d2f800f1ae554": "Mesh",
+  "0dd3b2a6db244763": "Este enlace de Mesh requiere el certificado de cliente de este dispositivo. Comprueba el registro del dispositivo en Mesh o selecciona el certificado en los ajustes avanzados del entorno. Luego inténtalo de nuevo.",
   "f746b1e0bfb2ec4a": "Ahora no",
   "ec0ff9e9b0d329e0": "Continuar",
   "e31bffe1b264deac": "Se quitó la inscripción.",

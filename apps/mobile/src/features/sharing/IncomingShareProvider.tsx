@@ -16,6 +16,8 @@ import { useSyncExternalStore } from "react";
 import { Platform } from "react-native";
 import { CommonActions } from "@react-navigation/native";
 
+import { environmentCatalog } from "../../connection/catalog";
+import { resolveMeshSharedThread } from "../mesh/meshSharedThread";
 import {
   buildIncomingShareDraft,
   isShareFileUriUnderOwnedRoots,
@@ -28,7 +30,7 @@ import { IncomingShareInbox } from "./incoming-share-inbox";
 import { persistComposerAttachmentFile } from "../../lib/composerImages";
 import { subscribeAppActive } from "../../lib/appState";
 import { coalescedRun } from "../../lib/coalescedRun";
-import { rootNavigationRef } from "../../lib/rootNavigation";
+import { rootNavigationRef, whenRootNavigationReady } from "../../lib/rootNavigation";
 import { selectWorkspaceDetail } from "../layout/workspace/workspace-detail-selection";
 import { isDraftThreadRoute } from "../threads/thread-route-state";
 import { makeIncomingShareImports } from "../threads/incomingShareImport";
@@ -152,6 +154,17 @@ const incomingShareInbox = new IncomingShareInbox({
   removeDraft: removeIncomingShareDraft,
   getPayloads: getIncomingSharePayloads,
   clearPayloads: clearSharedPayloads,
+  resolveSharedThread: async (payloads) => {
+    const target = await resolveMeshSharedThread(payloads, (id) =>
+      appAtomRegistry.get(environmentCatalog.catalogValueAtom).entries.has(EnvironmentId.make(id)),
+    );
+    return target
+      ? () =>
+          whenRootNavigationReady(() =>
+            rootNavigationRef.dispatch(selectWorkspaceDetail({ name: "Thread", params: target })),
+          )
+      : null;
+  },
   buildDraft: async ({ payloads, id, createdAt }) => {
     const cleanupUris = new Set<string>();
     const persistedUris = new Set<string>();
