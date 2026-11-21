@@ -289,5 +289,9 @@
   "7215b83aa8954d7b": "{up}/{total} machines up",
   "2f8ddad53e467890": "Fleet status unavailable",
   "86305beb35bbb486": "No fleet update yet",
-  "29cd12979dfdf522": "Updated {time}"
+  "29cd12979dfdf522": "Updated {time}",
+  "8d9f6140cbcd96c6": "Notify me about fleet changes",
+  "8761cec190d2db51": "Allow Android notifications for machine outages, recoveries, fleet alerts, and device certificate problems.",
+  "85933e74fc5e1092": "Continue",
+  "92a306effa64ec2e": "Could not update fleet notifications."
 }

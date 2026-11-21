@@ -1,0 +1,9 @@
+<resources>
+  <string name="t3_mesh_fleet_channel">Mesh fleet</string>
+  <string name="t3_mesh_fleet_down">Mesh machines or T3 unavailable</string>
+  <string name="t3_mesh_fleet_back">Mesh machines back online</string>
+  <string name="t3_mesh_fleet_alerts">New Mesh fleet alerts</string>
+  <string name="t3_mesh_fleet_device">Mesh device certificate</string>
+  <string name="t3_mesh_fleet_reenroll">Open Mesh to re-enroll this device.</string>
+  <string name="t3_mesh_fleet_renewal_failed">The last certificate renewal check failed. Open Mesh for details.</string>
+</resources>

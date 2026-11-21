@@ -44,10 +44,17 @@ function applyGradleVersion(contents, versionName, versionCode) {
 function withMeshNativeMods(config, { versionName, versionCode }) {
   config = withAndroidManifest(config, (modConfig) => {
     const { addMetaDataItemToMainApplication, getMainApplicationOrThrow } = AndroidConfig.Manifest;
+    const application = getMainApplicationOrThrow(modConfig.modResults);
+    const meshUrl = `${modConfig.scheme}://settings/mesh`;
     addMetaDataItemToMainApplication(
-      getMainApplicationOrThrow(modConfig.modResults),
+      application,
       "expo.modules.widgets.LAUNCH_URL.SubscriptionUsage",
-      `${modConfig.scheme}://settings/mesh`,
+      meshUrl,
+    );
+    addMetaDataItemToMainApplication(
+      application,
+      "expo.modules.t3clientcertificates.FLEET_LAUNCH_URL",
+      meshUrl,
     );
     return modConfig;
   });
@@ -62,15 +69,8 @@ function withMeshNativeMods(config, { versionName, versionCode }) {
   return withDangerousMod(withGradle, [
     "android",
     async (modConfig) => {
-      const file = path.join(
-        modConfig.modRequest.platformProjectRoot,
-        "app",
-        "src",
-        "main",
-        "res",
-        "xml",
-        "network_security_config.xml",
-      );
+      const res = path.join(modConfig.modRequest.platformProjectRoot, "app", "src", "main", "res");
+      const file = path.join(res, "xml", "network_security_config.xml");
       fs.writeFileSync(file, addMeshDomainConfig(fs.readFileSync(file, "utf8")));
       return modConfig;
     },

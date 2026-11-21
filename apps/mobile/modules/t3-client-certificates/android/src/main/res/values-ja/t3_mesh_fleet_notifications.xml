@@ -1,0 +1,9 @@
+<resources>
+  <string name="t3_mesh_fleet_channel">Mesh フリート</string>
+  <string name="t3_mesh_fleet_down">Mesh マシンまたは T3 に接続できません</string>
+  <string name="t3_mesh_fleet_back">Mesh マシンがオンラインに復帰しました</string>
+  <string name="t3_mesh_fleet_alerts">Mesh フリートに新しいアラートがあります</string>
+  <string name="t3_mesh_fleet_device">Mesh デバイス証明書</string>
+  <string name="t3_mesh_fleet_reenroll">Mesh を開いてこのデバイスを再登録してください。</string>
+  <string name="t3_mesh_fleet_renewal_failed">前回の証明書更新チェックに失敗しました。詳しくは Mesh を開いてください。</string>
+</resources>

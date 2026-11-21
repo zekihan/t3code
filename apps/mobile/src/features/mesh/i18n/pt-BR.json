@@ -289,5 +289,9 @@
   "7215b83aa8954d7b": "{up}/{total} máquinas operacionais",
   "2f8ddad53e467890": "Status da frota indisponível",
   "86305beb35bbb486": "Frota ainda não atualizada",
-  "29cd12979dfdf522": "Atualizado: {time}"
+  "29cd12979dfdf522": "Atualizado: {time}",
+  "8d9f6140cbcd96c6": "Receber notificações sobre mudanças na frota",
+  "8761cec190d2db51": "Permita as notificações do Android para receber avisos de indisponibilidade e recuperação das máquinas, alertas da frota e problemas com o certificado do dispositivo.",
+  "85933e74fc5e1092": "Continuar",
+  "92a306effa64ec2e": "Não foi possível atualizar as notificações da frota."
 }

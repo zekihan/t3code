@@ -85,6 +85,7 @@ describe("withMesh config", () => {
     expect(config.slug).toBe("t3-mesh");
     expect(config.android.package).toBe("com.noqer.t3mesh");
     expect(config.version).toBe("2.3.0");
+    expect(config.android.permissions).toContain("android.permission.POST_NOTIFICATIONS");
     expect(config.ios.bundleIdentifier).toBe("com.t3tools.t3code");
   });
 
@@ -177,6 +178,7 @@ describe("withMesh versions", () => {
     const config = withMesh(upstreamConfig(), VERSION_ENV) as any;
     expect(config.android.versionCode).toBe(481401);
     expect(config.version).toBe("2.3.0");
+    expect(config.android.permissions).toContain("android.permission.POST_NOTIFICATIONS");
   });
 
   it("defaults to a local version when neither variable is set", () => {
@@ -324,6 +326,27 @@ describe("withMesh network security config", () => {
     expect(manifest).toContain(
       'android:name="expo.modules.widgets.LAUNCH_URL.SubscriptionUsage" android:value="t3mesh://settings/mesh"',
     );
+    expect(manifest).toContain(
+      'android:name="expo.modules.t3clientcertificates.FLEET_LAUNCH_URL" android:value="t3mesh://settings/mesh"',
+    );
+    // Translations live next to the module's defaults, so the app's lint sees both.
+    const moduleRes = NodePath.join(
+      import.meta.dirname,
+      "../modules/t3-client-certificates/android/src/main/res",
+    );
+    const fleetStrings = (dir: string) =>
+      NodeFS.readFileSync(NodePath.join(moduleRes, dir, "t3_mesh_fleet_notifications.xml"), "utf8");
+    const resourceIds = (xml: string) => xml.match(/name="t3_mesh_fleet_\w+"/g);
+    for (const locale of ["de", "es", "fr", "ja", "ko", "pt-rBR", "ru", "sv", "zh"]) {
+      expect(resourceIds(fleetStrings(`values-${locale}`))).toEqual(
+        resourceIds(fleetStrings("values")),
+      );
+      expect(
+        NodeFS.existsSync(
+          NodePath.join(main, `res/values-${locale}/t3_mesh_fleet_notifications.xml`),
+        ),
+      ).toBe(false);
+    }
     const xml = NodeFS.readFileSync(
       NodePath.join(main, "res/xml/network_security_config.xml"),
       "utf8",

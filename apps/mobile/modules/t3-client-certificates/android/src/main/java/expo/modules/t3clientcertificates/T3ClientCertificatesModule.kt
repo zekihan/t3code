@@ -188,6 +188,7 @@ class T3ClientCertificatesModule : Module() {
           }
           retire(origin)
         }
+        if (origin == MESH_HUB_ORIGIN) transport.fleetNotifications.reconcile()
         sendEvent("changed", mapOf("origin" to origin))
       }
       promise.resolve(alias)
@@ -230,6 +231,7 @@ class T3ClientCertificatesModule : Module() {
         }
       }
     }
+    if (origin == MESH_HUB_ORIGIN) transport.fleetNotifications.reconcile()
     sendEvent("changed", mapOf("origin" to origin))
     released.forEach { sendEvent("changed", mapOf("origin" to it)) }
   }

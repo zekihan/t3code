@@ -20,6 +20,8 @@ dependencies {
   implementation 'com.facebook.react:react-android'
   // ProxyController, for the stream process's direct path (A8).
   implementation 'androidx.webkit:webkit:1.14.0'
+  implementation 'androidx.lifecycle:lifecycle-process:2.9.3'
+  implementation 'androidx.work:work-runtime:2.10.5'
   testImplementation 'junit:junit:4.13.2'
   // The unit-test android.jar has no working org.json.
   testImplementation 'org.json:json:20180813'

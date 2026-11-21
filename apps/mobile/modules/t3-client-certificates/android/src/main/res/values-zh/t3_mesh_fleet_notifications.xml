@@ -1,0 +1,9 @@
+<resources>
+  <string name="t3_mesh_fleet_channel">Mesh 机群</string>
+  <string name="t3_mesh_fleet_down">Mesh 机器或 T3 无法访问</string>
+  <string name="t3_mesh_fleet_back">Mesh 机器已恢复在线</string>
+  <string name="t3_mesh_fleet_alerts">Mesh 机群有新告警</string>
+  <string name="t3_mesh_fleet_device">Mesh 设备证书</string>
+  <string name="t3_mesh_fleet_reenroll">打开 Mesh 以重新注册此设备。</string>
+  <string name="t3_mesh_fleet_renewal_failed">上次证书续期检查失败。打开 Mesh 查看详情。</string>
+</resources>

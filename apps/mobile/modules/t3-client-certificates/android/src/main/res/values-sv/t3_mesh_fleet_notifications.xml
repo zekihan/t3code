@@ -1,0 +1,9 @@
+<resources>
+  <string name="t3_mesh_fleet_channel">Mesh-maskinparken</string>
+  <string name="t3_mesh_fleet_down">Mesh-maskiner eller T3 är inte tillgängliga</string>
+  <string name="t3_mesh_fleet_back">Mesh-maskiner är online igen</string>
+  <string name="t3_mesh_fleet_alerts">Nya varningar i Mesh-maskinparken</string>
+  <string name="t3_mesh_fleet_device">Mesh-enhetscertifikat</string>
+  <string name="t3_mesh_fleet_reenroll">Öppna Mesh för att registrera enheten på nytt.</string>
+  <string name="t3_mesh_fleet_renewal_failed">Den senaste kontrollen av certifikatförnyelsen misslyckades. Öppna Mesh för mer information.</string>
+</resources>

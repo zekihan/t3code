@@ -3,6 +3,9 @@ package expo.modules.t3clientcertificates
 import android.content.Context
 import android.security.KeyChain
 import android.security.KeyChainException
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ProcessLifecycleOwner
 import com.facebook.react.modules.network.CustomClientBuilder
 import com.facebook.react.modules.network.NetworkingModule
 import com.facebook.react.modules.websocket.WebSocketModule
@@ -19,6 +22,7 @@ import expo.modules.t3clientcertificates.enroll.enrolledAlias
 import expo.modules.t3clientcertificates.enroll.isEnrolledAlias
 import expo.modules.t3clientcertificates.enroll.isMeshOrigin
 import expo.modules.t3clientcertificates.enroll.sanitizeMeshOrigins
+import expo.modules.t3clientcertificates.fleet.FleetNotifications
 import expo.modules.t3clientcertificates.stream.StreamEnrolledIdentity
 import expo.modules.t3clientcertificates.stream.StreamProcess
 import java.io.IOException
@@ -93,6 +97,21 @@ class T3CertificateTransport private constructor(private val context: Context) {
       baseVerifier = originHostnameVerifier
     )
 
+  internal val fleetNotifications = FleetNotifications(context) { aliasFor(MESH_HUB_ORIGIN) != null }
+
+  private val foreground = object : DefaultLifecycleObserver {
+    private var startedDirect = false
+
+    override fun onStart(owner: LifecycleOwner) {
+      // WorkManager can cold-start this process without an activity.
+      if (!startedDirect) {
+        startedDirect = true
+        direct.start()
+      }
+      fleetNotifications.reconcile()
+    }
+  }
+
   // The Mesh screen's list of viewer origins, read on every connection; replaced as a whole.
   @Volatile private var listedMeshOrigins: Set<String>? = null
 
@@ -124,7 +143,6 @@ class T3CertificateTransport private constructor(private val context: Context) {
         .followRedirects(false)
         .followSslRedirects(false)
         .build()
-    direct.start()
   }
 
   internal fun isProviderFactoryInstalled() = providerFactory.isInstalled()
@@ -200,6 +218,7 @@ class T3CertificateTransport private constructor(private val context: Context) {
     direct.enrollmentChanged(identityChanged)
     if (identityChanged) {
       dropAllConnections()
+      fleetNotifications.reconcile()
       (meshOrigins() + MESH_HUB_ORIGIN).forEach { originChanged?.invoke(it) }
     }
     enrollmentStatusChanged?.invoke()
@@ -344,9 +363,9 @@ class T3CertificateTransport private constructor(private val context: Context) {
     @JvmStatic
     @Synchronized
     fun reassert() {
-      checkNotNull(instance) { "Client certificate transport was not installed" }
-        .providerFactory
-        .reassert()
+      val transport = checkNotNull(instance) { "Client certificate transport was not installed" }
+      transport.providerFactory.reassert()
+      ProcessLifecycleOwner.get().lifecycle.addObserver(transport.foreground)
     }
   }
 }

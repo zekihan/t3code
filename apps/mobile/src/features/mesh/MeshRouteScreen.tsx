@@ -19,6 +19,8 @@ import { pairedEnvironmentsByMachine } from "./meshEnvironments";
 import { MeshDiagnosticsView } from "./MeshDiagnosticsView";
 import { meshDiagnosticsRunner, pairedMeshDiagnosticTargets } from "./meshDiagnosticsSocket";
 import { MeshEnrollmentView } from "./MeshEnrollmentView";
+import { MeshFleetNotificationsToggle } from "./MeshFleetNotificationsToggle";
+import { fleetNotificationsAvailable } from "./meshFleetNotifications";
 import { MeshFleetView } from "./MeshFleetView";
 import { MeshMachinesView } from "./MeshMachinesView";
 import { MESH_ROUTE_TITLE } from "./meshSettingsRow";
@@ -147,6 +149,9 @@ export function MeshRouteScreen() {
             onSelect={setScreen}
           />
         </View>
+        {tab === "fleet" && fleetNotificationsAvailable && (enrolled || fleet.alias !== null) ? (
+          <MeshFleetNotificationsToggle />
+        ) : null}
         {tab === "device" ? (
           <MeshEnrollmentView
             state={enrollment.state}

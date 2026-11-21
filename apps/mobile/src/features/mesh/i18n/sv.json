@@ -289,5 +289,9 @@
   "7215b83aa8954d7b": "{up}/{total} maskiner i drift",
   "2f8ddad53e467890": "Flottans status är inte tillgänglig",
   "86305beb35bbb486": "Flottans status har ännu inte uppdaterats",
-  "29cd12979dfdf522": "Uppdaterad: {time}"
+  "29cd12979dfdf522": "Uppdaterad: {time}",
+  "8d9f6140cbcd96c6": "Meddela mig om ändringar i maskinparken",
+  "8761cec190d2db51": "Tillåt Android-aviseringar om maskinavbrott, återställningar, varningar i maskinparken och problem med enhetscertifikat.",
+  "85933e74fc5e1092": "Fortsätt",
+  "92a306effa64ec2e": "Det gick inte att uppdatera aviseringarna för maskinparken."
 }

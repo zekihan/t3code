@@ -289,5 +289,9 @@
   "7215b83aa8954d7b": "{up}/{total} equipos operativos",
   "2f8ddad53e467890": "Estado de la flota no disponible",
   "86305beb35bbb486": "La flota aún no se ha actualizado",
-  "29cd12979dfdf522": "Actualizado: {time}"
+  "29cd12979dfdf522": "Actualizado: {time}",
+  "8d9f6140cbcd96c6": "Avisarme de cambios en la flota",
+  "8761cec190d2db51": "Permite las notificaciones de Android para recibir avisos de caídas y recuperaciones de equipos, alertas de la flota y problemas con el certificado del dispositivo.",
+  "85933e74fc5e1092": "Continuar",
+  "92a306effa64ec2e": "No se pudieron actualizar las notificaciones de la flota."
 }

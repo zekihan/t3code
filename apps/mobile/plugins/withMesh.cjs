@@ -106,6 +106,9 @@ function withMesh(config, env = process.env) {
       ...android,
       package: MESH_ANDROID_PACKAGE,
       versionCode,
+      permissions: [
+        ...new Set([...(android.permissions ?? []), "android.permission.POST_NOTIFICATIONS"]),
+      ],
       intentFilters: (android.intentFilters ?? []).filter(keepsIntentFilter),
     },
     // First entries: their mods are registered first, so they run after every upstream plugin's.

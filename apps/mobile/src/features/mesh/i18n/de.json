@@ -289,5 +289,9 @@
   "7215b83aa8954d7b": "{up}/{total} Geräte online",
   "2f8ddad53e467890": "Flottenstatus nicht verfügbar",
   "86305beb35bbb486": "Noch keine Flottendaten",
-  "29cd12979dfdf522": "Aktualisiert: {time}"
+  "29cd12979dfdf522": "Aktualisiert: {time}",
+  "8d9f6140cbcd96c6": "Über Änderungen in der Flotte benachrichtigen",
+  "8761cec190d2db51": "Erlaube Android-Benachrichtigungen für Rechnerausfälle, deren Behebung, Flottenwarnungen und Probleme mit Gerätezertifikaten.",
+  "85933e74fc5e1092": "Weiter",
+  "92a306effa64ec2e": "Die Flottenbenachrichtigungen konnten nicht aktualisiert werden."
 }

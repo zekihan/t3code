@@ -1,0 +1,9 @@
+<resources>
+  <string name="t3_mesh_fleet_channel">Parc Mesh</string>
+  <string name="t3_mesh_fleet_down">Machines Mesh ou T3 indisponibles</string>
+  <string name="t3_mesh_fleet_back">Machines Mesh de nouveau en ligne</string>
+  <string name="t3_mesh_fleet_alerts">Nouvelles alertes du parc Mesh</string>
+  <string name="t3_mesh_fleet_device">Certificat de l’appareil Mesh</string>
+  <string name="t3_mesh_fleet_reenroll">Ouvrez Mesh pour réinscrire cet appareil.</string>
+  <string name="t3_mesh_fleet_renewal_failed">La dernière vérification de renouvellement du certificat a échoué. Ouvrez Mesh pour en savoir plus.</string>
+</resources>

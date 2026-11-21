@@ -1,0 +1,9 @@
+<resources>
+  <string name="t3_mesh_fleet_channel">Mesh-Flotte</string>
+  <string name="t3_mesh_fleet_down">Mesh-Rechner oder T3 nicht erreichbar</string>
+  <string name="t3_mesh_fleet_back">Mesh-Rechner wieder erreichbar</string>
+  <string name="t3_mesh_fleet_alerts">Neue Warnungen für die Mesh-Flotte</string>
+  <string name="t3_mesh_fleet_device">Mesh-Gerätezertifikat</string>
+  <string name="t3_mesh_fleet_reenroll">Öffne Mesh, um dieses Gerät erneut zu registrieren.</string>
+  <string name="t3_mesh_fleet_renewal_failed">Die letzte Prüfung der Zertifikatserneuerung ist fehlgeschlagen. Details findest du in Mesh.</string>
+</resources>

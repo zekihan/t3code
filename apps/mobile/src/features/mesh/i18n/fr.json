@@ -289,5 +289,9 @@
   "7215b83aa8954d7b": "{up}/{total} machines opérationnelles",
   "2f8ddad53e467890": "État du parc indisponible",
   "86305beb35bbb486": "Parc pas encore actualisé",
-  "29cd12979dfdf522": "Mis à jour : {time}"
+  "29cd12979dfdf522": "Mis à jour : {time}",
+  "8d9f6140cbcd96c6": "Me prévenir des changements dans le parc",
+  "8761cec190d2db51": "Autorisez les notifications Android pour les pannes et les rétablissements des machines, les alertes du parc et les problèmes de certificat de l’appareil.",
+  "85933e74fc5e1092": "Continuer",
+  "92a306effa64ec2e": "Impossible de mettre à jour les notifications du parc."
 }

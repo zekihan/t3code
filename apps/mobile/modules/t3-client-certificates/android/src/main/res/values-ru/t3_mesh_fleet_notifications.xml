@@ -1,0 +1,9 @@
+<resources>
+  <string name="t3_mesh_fleet_channel">Парк Mesh</string>
+  <string name="t3_mesh_fleet_down">Машины Mesh или T3 недоступны</string>
+  <string name="t3_mesh_fleet_back">Машины Mesh снова в сети</string>
+  <string name="t3_mesh_fleet_alerts">Новые предупреждения парка Mesh</string>
+  <string name="t3_mesh_fleet_device">Сертификат устройства Mesh</string>
+  <string name="t3_mesh_fleet_reenroll">Откройте Mesh, чтобы повторно зарегистрировать это устройство.</string>
+  <string name="t3_mesh_fleet_renewal_failed">Последняя проверка продления сертификата завершилась ошибкой. Откройте Mesh для подробностей.</string>
+</resources>

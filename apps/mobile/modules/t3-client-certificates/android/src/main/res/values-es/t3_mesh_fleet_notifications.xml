@@ -1,0 +1,9 @@
+<resources>
+  <string name="t3_mesh_fleet_channel">Flota de Mesh</string>
+  <string name="t3_mesh_fleet_down">Equipos de Mesh o T3 no disponibles</string>
+  <string name="t3_mesh_fleet_back">Equipos de Mesh de nuevo en línea</string>
+  <string name="t3_mesh_fleet_alerts">Nuevas alertas de la flota de Mesh</string>
+  <string name="t3_mesh_fleet_device">Certificado del dispositivo Mesh</string>
+  <string name="t3_mesh_fleet_reenroll">Abre Mesh para volver a registrar este dispositivo.</string>
+  <string name="t3_mesh_fleet_renewal_failed">Falló la última comprobación de renovación del certificado. Abre Mesh para ver los detalles.</string>
+</resources>

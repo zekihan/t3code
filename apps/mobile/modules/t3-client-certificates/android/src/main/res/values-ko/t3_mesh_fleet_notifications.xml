@@ -1,0 +1,9 @@
+<resources>
+  <string name="t3_mesh_fleet_channel">Mesh 플릿</string>
+  <string name="t3_mesh_fleet_down">Mesh 머신 또는 T3에 접속할 수 없음</string>
+  <string name="t3_mesh_fleet_back">Mesh 머신이 다시 온라인 상태입니다</string>
+  <string name="t3_mesh_fleet_alerts">새 Mesh 플릿 경고</string>
+  <string name="t3_mesh_fleet_device">Mesh 기기 인증서</string>
+  <string name="t3_mesh_fleet_reenroll">Mesh를 열어 이 기기를 다시 등록하세요.</string>
+  <string name="t3_mesh_fleet_renewal_failed">마지막 인증서 갱신 확인에 실패했습니다. 자세한 내용은 Mesh에서 확인하세요.</string>
+</resources>
