@@ -1,5 +1,4 @@
 import { useIsFocused, useNavigation } from "@react-navigation/native";
-import { useAtomSet } from "@effect/atom-react";
 import type { EnvironmentId } from "@t3tools/contracts";
 import { useGT, useMessages } from "gt-react-native";
 import { useEffect, useState } from "react";
@@ -17,8 +16,6 @@ import { useHomeListOptions } from "../home/home-list-options";
 import { useSelectWorkspaceTab } from "../layout/workspace/useSelectWorkspaceTab";
 import { SettingsScreen } from "../settings/components/SettingsScreen";
 import { pairedEnvironmentsByMachine } from "./meshEnvironments";
-import type { MeshMachine } from "./meshMachines";
-import { meshPairingOriginAtom } from "./meshPairingPrefill";
 import { MeshDiagnosticsView } from "./MeshDiagnosticsView";
 import { meshDiagnosticsRunner, pairedMeshDiagnosticTargets } from "./meshDiagnosticsSocket";
 import { MeshEnrollmentView } from "./MeshEnrollmentView";
@@ -30,6 +27,7 @@ import { useLocalNetworkAccess } from "./useLocalNetworkAccess";
 import { useMeshEnrollment } from "./useMeshEnrollment";
 import { useMeshFleet } from "./useMeshFleet";
 import { useMeshMachines } from "./useMeshMachines";
+import { useMeshPairing } from "./useMeshPairing";
 
 /**
  * Settings > Mesh: the machines the hub lists for this phone's identity, a read-only fleet
@@ -43,7 +41,7 @@ export function MeshRouteScreen() {
   const { setSelectedEnvironmentId, setSelectedProjectKey } = useHomeListOptions(new Set());
   const insets = useSafeAreaInsets();
   const { connectedEnvironments } = useRemoteConnections();
-  const setMeshPairingOrigin = useAtomSet(meshPairingOriginAtom);
+  const pair = useMeshPairing("settings");
   const mesh = useMeshMachines();
   const [screen, setScreen] = useState<"machines" | "fleet" | "device" | "device-enrollment">(
     "machines",
@@ -73,11 +71,6 @@ export function MeshRouteScreen() {
   const pull = () => {
     setPulled(true);
     void refresh().finally(() => setPulled(false));
-  };
-  // Pairing stays manual: the form opens with the viewer's address and waits for the code.
-  const pair = (machine: MeshMachine) => {
-    setMeshPairingOrigin(machine.viewerOrigin);
-    navigation.navigate("SettingsEnvironmentNew", { meshPairingOrigin: machine.viewerOrigin });
   };
   const open = (environmentId: EnvironmentId) => {
     setSelectedProjectKey(null);

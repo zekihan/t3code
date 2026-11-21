@@ -1,7 +1,7 @@
 import type { EnvironmentId } from "@t3tools/contracts";
 import { expect, it } from "vite-plus/test";
 
-import { pairedEnvironmentsByMachine } from "./meshEnvironments";
+import { pairedEnvironmentsByMachine, unpairedMeshMachines } from "./meshEnvironments";
 
 const machine = (name: string) => ({
   name,
@@ -25,4 +25,14 @@ it("pairs a machine with the environment at its exact viewer origin", () => {
     ],
   );
   expect([...paired]).toEqual([["z-arch", "e1"]]);
+});
+
+it("lists cached machines without a paired viewer origin, including offline machines", () => {
+  const offline = { ...machine("z-mac"), online: false };
+  const machines = [machine("z-arch"), offline];
+  const paired = environment("e1", "https://t3.z-arch.mesh.noqer.com/path");
+
+  expect(unpairedMeshMachines(machines, [paired])).toEqual([offline]);
+  expect(unpairedMeshMachines([machines[0]!], [paired])).toEqual([]);
+  expect(unpairedMeshMachines(null, [paired])).toEqual([]);
 });

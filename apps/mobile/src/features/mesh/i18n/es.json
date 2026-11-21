@@ -39,6 +39,7 @@
   "7f8eb8fd7ee9c914": "La ruta que siguen las solicitudes de este teléfono a la máquina; el túnel de la máquina es aparte.",
   "8ee7486d8554ae16": "El túnel propio de la máquina hacia el hub.",
   "467ef69a745f6867": "Buscar máquinas en la red mesh",
+  "fb27ddf9eab54311": "Máquinas mesh sin emparejar",
   "23854a5af82aae62": "Se necesita acceso a la cámara",
   "4d4dc9eaa91aceff": "Se denegó el acceso a la cámara para esta aplicación. Abre Ajustes para permitirlo.",
   "28ae2c5e144a8c02": "Abrir Ajustes",

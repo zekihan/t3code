@@ -105,6 +105,7 @@ import { useWorkspaceTabs } from "../layout/workspace/WorkspaceTabsContext";
 import { ThreadListFilters } from "./ThreadListFilters";
 import { deriveHomeEmptyState } from "./home-empty-state";
 import { MeshEmptyStateLink } from "../mesh/MeshEmptyStateLink";
+import { MeshHomeMachines } from "../mesh/MeshHomeMachines";
 
 interface HomeScreenProps {
   /** Whether this list is the one on screen; see `useHomeRouteVisible`. */
@@ -668,6 +669,7 @@ export function HomeScreen(props: HomeScreenProps) {
                 variant="plain"
               />
               {emptyState.showsAddEnvironment ? <MeshEmptyStateLink /> : null}
+              <MeshHomeMachines />
               {emptyState.loading ? (
                 <View className="mt-4 items-center">
                   <AppActivityIndicator colorClassName="accent-icon-muted" />
@@ -685,6 +687,7 @@ export function HomeScreen(props: HomeScreenProps) {
   const v2ListHeader = (
     <>
       {listHeader}
+      <MeshHomeMachines inList />
       {Platform.OS === "ios" && workspace ? (
         <ThreadListFilters
           gutter={sidebarSurface ? 8 : 0}
