@@ -19,6 +19,55 @@ const ENROLLED_ALIAS_PREFIX = "enrolled:";
 export const isEnrolledAlias = (alias: string | null | undefined): boolean =>
   typeof alias === "string" && alias.startsWith(ENROLLED_ALIAS_PREFIX);
 
+export function describeMeshIdentityWarning(
+  status: EnrollmentStatus | null,
+  refusedCredential: { readonly alias: string; readonly startedAt: number } | undefined,
+  resolve: MessageResolver = m,
+) {
+  if (status === null) return null;
+  if (status.state === "expired") {
+    return {
+      kind: "refused" as const,
+      message: resolve(msg("The certificate has expired. Re-enroll this device with a new token.")),
+    };
+  }
+  if (status.state === "key-missing") {
+    return {
+      kind: "refused" as const,
+      message: resolve(
+        msg(
+          "The key is no longer in the Android Keystore (a screen lock or biometric change can remove it). Re-enroll this device with a new token.",
+        ),
+      ),
+    };
+  }
+  const command = `t3-mesh-hub enroll-token --device ${status.identity}`;
+  const refused =
+    status.state === "reenroll" ||
+    (refusedCredential?.alias === ENROLLED_ALIAS_PREFIX + status.identity &&
+      refusedCredential.startedAt >= status.issuedAt);
+  if (refused) {
+    return {
+      kind: "refused" as const,
+      message: resolve(
+        msg(
+          "The hub refused this device's enrolled certificate. This can block access to every mesh host. To re-enroll, mint a new token on the hub with {command}.",
+          { command },
+        ),
+      ),
+    };
+  }
+  if (status.lastError === null) return null;
+  return {
+    kind: "renewal-failed" as const,
+    message: resolve(
+      msg("The last renewal failed. To re-enroll, mint a new token on the hub with {command}.", {
+        command,
+      }),
+    ),
+  };
+}
+
 /** Null when `name` is a valid device identity, else what is wrong with it. */
 export function identityProblem(name: string, resolve: MessageResolver = m): string | null {
   if (name.length === 0) return resolve(msg("Enter this device's name."));

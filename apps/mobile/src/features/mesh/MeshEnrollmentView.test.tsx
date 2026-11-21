@@ -262,6 +262,17 @@ it("asks to re-enroll when the hub refused the leaf", () => {
   ).toBe("device-z-phone-mesh");
 });
 
+it("opens the prefilled re-enrollment form when requested by Machines", () => {
+  const { container } = render({ status: status() }, { startWithForm: true });
+  expect(container.textContent).toContain("A new key replaces the current one");
+  expect(
+    container.querySelector<HTMLInputElement>('input[aria-label="Identity name"]')?.value,
+  ).toBe("device-z-phone-mesh");
+  expect(
+    container.querySelector<HTMLInputElement>('input[aria-label="Enrollment token"]')?.value,
+  ).toBe("");
+});
+
 it("does not say it twice when a renewal found the leaf refused", () => {
   const { container } = render({
     status: status({ state: "reenroll" }),

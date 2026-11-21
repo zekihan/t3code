@@ -44,8 +44,13 @@ export function parseMeshMachines(payload: unknown): MeshMachine[] | null {
   return [...machines.values()];
 }
 
+export interface CachedMeshMachines {
+  readonly machines: readonly MeshMachine[];
+  readonly checkedAt: number | null;
+}
+
 /** Parses a list saved by `serializeMeshMachines`; anything else is an empty cache. */
-export function readCachedMeshMachines(raw: string | null): MeshMachine[] | null {
+export function readCachedMeshMachines(raw: string | null): CachedMeshMachines | null {
   if (raw === null) return null;
   try {
     const value: unknown = JSON.parse(raw);
@@ -63,14 +68,18 @@ export function readCachedMeshMachines(raw: string | null): MeshMachine[] | null
         },
       ];
     });
-    return machines;
+    const checkedAt =
+      typeof value.checkedAt === "number" && Number.isFinite(value.checkedAt)
+        ? value.checkedAt
+        : null;
+    return { machines, checkedAt };
   } catch {
     return null;
   }
 }
 
-export function serializeMeshMachines(machines: readonly MeshMachine[]): string {
-  return JSON.stringify({ machines });
+export function serializeMeshMachines(machines: readonly MeshMachine[], checkedAt: number): string {
+  return JSON.stringify({ machines, checkedAt });
 }
 
 /** "just now", "5m ago", "3h ago", "2d ago"; "never seen" when the hub has no time. */

@@ -2,10 +2,15 @@ import { msg } from "gt-react-native";
 import { useEffect, useRef, useState } from "react";
 
 import { m } from "../../i18n/messages";
-import { chooseClientCertificate, clientCertificatesAvailable } from "../../lib/clientCertificates";
-import { fetchMeshMachines, type MeshFetchResult } from "./meshHub";
+import {
+  chooseClientCertificate,
+  clientCertificatesAvailable,
+  selectedClientCertificate,
+} from "../../lib/clientCertificates";
+import { fetchMeshMachines } from "./meshHub";
 import { nativeMeshAliasApi, syncMeshAliases } from "./meshAliases";
 import { setMeshOrigins } from "./meshEnrollment";
+import { isEnrolledAlias } from "./meshEnrollmentLogic";
 import type { MeshMachine } from "./meshMachines";
 import { loadCachedMeshMachines, saveCachedMeshMachines } from "./meshStore";
 import { MESH_HUB_URL } from "./meshViewerUrl";
@@ -13,7 +18,11 @@ import { useClientCertificateStatus } from "./useClientCertificateStatus";
 
 export type MeshProblem =
   | { readonly kind: "no-certificate"; readonly message: string | null }
-  | { readonly kind: "refused"; readonly status: number }
+  | {
+      readonly kind: "refused";
+      readonly status: number;
+      readonly credential?: { readonly alias: string; readonly startedAt: number };
+    }
   | { readonly kind: "unavailable"; readonly message: string };
 
 export interface MeshState {
@@ -22,7 +31,9 @@ export interface MeshState {
   readonly fromCache: boolean;
   readonly problem: MeshProblem | null;
   readonly loading: boolean;
-  /** When the list was last checked, for "seen 5m ago" labels. */
+  /** When the hub returned the displayed list; null for legacy cache entries. */
+  readonly checkedAt: number | null;
+  /** Reference time for relative labels. */
   readonly now: number;
 }
 
@@ -32,11 +43,8 @@ const initialState = (): MeshState => ({
   problem: null,
   loading: true,
   now: Date.now(),
+  checkedAt: null,
 });
-
-function problemOf(result: Exclude<MeshFetchResult, { kind: "ok" }>): MeshProblem {
-  return result.kind === "no-certificate" ? { kind: "no-certificate", message: null } : result;
-}
 
 /**
  * The Mesh screen's data. The first open with no hub certificate shows the KeyChain picker; the
@@ -52,7 +60,7 @@ export function useMeshMachines() {
   const refresh = async (promptForCertificate: boolean) => {
     const id = ++request.current;
     const current = () => id === request.current;
-    setState((previous) => ({ ...previous, loading: true }));
+    setState((previous) => ({ ...previous, loading: true, now: Date.now() }));
     let pickerMessage: string | null = null;
     if (alias === null && promptForCertificate && clientCertificatesAvailable) {
       try {
@@ -62,17 +70,21 @@ export function useMeshMachines() {
           error instanceof Error ? error.message : m(msg("Could not select a certificate."));
       }
     }
+    const requestedAlias = selectedClientCertificate(MESH_HUB_URL);
+    const startedAt = Date.now();
     const result = await fetchMeshMachines();
     if (!current()) return;
     if (result.kind === "ok") {
+      const checkedAt = Date.now();
       setState({
         machines: result.machines,
         fromCache: false,
         problem: null,
         loading: false,
-        now: Date.now(),
+        now: checkedAt,
+        checkedAt,
       });
-      void saveCachedMeshMachines(result.machines);
+      void saveCachedMeshMachines(result.machines, checkedAt);
       // The enrolled identity applies to the origins the hub just listed, and to no others.
       void setMeshOrigins(result.machines.map((machine) => machine.viewerOrigin)).catch(
         () => undefined,
@@ -81,13 +93,16 @@ export function useMeshMachines() {
       await syncMeshAliases(nativeMeshAliasApi, result.machines).catch(() => undefined);
       return;
     }
-    const problem = problemOf(result);
+    let problem: MeshProblem =
+      result.kind === "no-certificate"
+        ? { kind: "no-certificate", message: pickerMessage }
+        : result;
+    if (result.kind === "refused" && requestedAlias && isEnrolledAlias(requestedAlias)) {
+      problem = { ...result, credential: { alias: requestedAlias, startedAt } };
+    }
     setState((previous) => ({
       ...previous,
-      problem:
-        problem.kind === "no-certificate"
-          ? { kind: "no-certificate", message: pickerMessage }
-          : problem,
+      problem,
       loading: false,
       now: Date.now(),
     }));
@@ -99,9 +114,7 @@ export function useMeshMachines() {
     void loadCachedMeshMachines().then((cached) => {
       if (live && cached) {
         setState((previous) =>
-          previous.machines === null
-            ? { ...previous, machines: cached, fromCache: true }
-            : previous,
+          previous.machines === null ? { ...previous, ...cached, fromCache: true } : previous,
         );
       }
     });

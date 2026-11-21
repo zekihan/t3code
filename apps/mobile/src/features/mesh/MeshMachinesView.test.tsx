@@ -43,7 +43,15 @@ vi.mock("../connection/ConnectionStatusDot", () => ({
   ConnectionStatusDot: ({ state }: { state: string }) => <b data-dot={state} />,
 }));
 
+vi.mock("./useMeshDirect", () => ({
+  useMeshDirect: (origin: string) => ({
+    path: origin.includes("z-arch") ? "direct" : "viewer",
+    network: origin.includes("z-arch") ? "LAN" : null,
+  }),
+}));
+
 import { MeshMachinesView, meshViewKind, type MeshMachinesViewProps } from "./MeshMachinesView";
+import type { EnrollmentStatus } from "./meshEnrollment.types";
 import type { MeshMachine } from "./meshMachines";
 import type { MeshState } from "./useMeshMachines";
 
@@ -62,14 +70,18 @@ const state = (overrides: Partial<MeshState>): MeshState => ({
   problem: null,
   loading: false,
   now: NOW,
+  checkedAt: null,
   ...overrides,
 });
 
 function render(overrides: Partial<MeshMachinesViewProps> & { state: MeshState }) {
   const props: MeshMachinesViewProps = {
     now: NOW,
+    fleet: null,
+    fleetCheckedAt: null,
     paired: new Map(),
     certificateWarning: null,
+    enrollment: null,
     onOpen: vi.fn(),
     onPair: vi.fn(),
     onChooseCertificate: vi.fn(),
@@ -144,6 +156,65 @@ it("offers enrollment when the hub refused the certificate, but not for a networ
   expect(offline.container.querySelector('[aria-label="Enroll this device"]')).toBeNull();
 });
 
+const enrolled: EnrollmentStatus = {
+  identity: "device-z-phone-mesh",
+  issuedAt: NOW - 30_000,
+  notAfter: NOW + 86_400_000,
+  renewAt: NOW,
+  state: "valid",
+  renewalDue: true,
+  protection: "tee",
+  exportable: false,
+  previous: null,
+  caRevision: null,
+  lastCheckAt: NOW,
+  lastError: null,
+};
+
+it("shows the refused enrollment warning and offers re-enrollment even without a list", () => {
+  const onEnroll = vi.fn();
+  const { container } = render({
+    state: state({ problem: { kind: "refused", status: 403 } }),
+    enrollment: { ...enrolled, state: "reenroll", lastError: "offline" },
+    certificateWarning: "KeyChain certificate expires soon",
+    onEnroll,
+  });
+  const warnings = container.querySelectorAll('[role="alert"]');
+  expect(warnings).toHaveLength(1);
+  expect(warnings[0]?.textContent).toContain("The hub refused this device's enrolled certificate");
+  expect(warnings[0]?.textContent).toContain(
+    "t3-mesh-hub enroll-token --device device-z-phone-mesh",
+  );
+  expect(container.textContent).not.toContain("last renewal failed");
+  expect(container.textContent).not.toContain("KeyChain certificate expires soon");
+  act(() => container.querySelector<HTMLButtonElement>('[aria-label="Re-enroll"]')!.click());
+  expect(onEnroll).toHaveBeenCalledOnce();
+});
+
+it("shows a failed renewal before a KeyChain expiry warning", () => {
+  const { container } = render({
+    state: state({ machines: [machine("z-arch", true, NOW)] }),
+    enrollment: { ...enrolled, lastError: "offline" },
+    certificateWarning: "KeyChain certificate expires soon",
+    onEnroll: vi.fn(),
+  });
+  expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+    "The last renewal failed",
+  );
+  expect(container.textContent).not.toContain("KeyChain certificate expires soon");
+});
+
+it("uses the KeyChain warning when the enrolled identity has no failure", () => {
+  const { container } = render({
+    state: state({ machines: [machine("z-arch", true, NOW)] }),
+    enrollment: enrolled,
+    certificateWarning: "KeyChain certificate expires soon",
+  });
+  expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+    "KeyChain certificate expires soon",
+  );
+});
+
 it("tells a network error apart and offers a retry", () => {
   const { container, props } = render({
     state: state({ problem: { kind: "unavailable", message: "The hub did not answer in time." } }),
@@ -156,19 +227,47 @@ it("tells a network error apart and offers a retry", () => {
 });
 
 it("lists machines with their state, last seen time and viewer URL", () => {
+  const arch = machine("z-arch", true, NOW - 5 * 60_000);
+  const mac = machine("z-mac", false, null);
+  const server = machine("server", true, NOW);
   const { container } = render({
-    state: state({
-      machines: [machine("z-arch", true, NOW - 5 * 60_000), machine("z-mac", false, null)],
-    }),
+    state: state({ machines: [arch, mac, server], checkedAt: NOW }),
+    fleetCheckedAt: NOW,
+    fleet: {
+      callerPath: null,
+      machines: [arch, server].map((entry) => ({
+        ...entry,
+        agentVersion: null,
+        certNotAfter: null,
+        tunnelPath: null,
+        connectedSince: null,
+        alerts: [],
+        services: {
+          t3:
+            entry === arch
+              ? { state: "unreachable", since: NOW - 120_000 }
+              : { state: "reachable", since: NOW },
+        },
+      })),
+    },
   });
   const text = container.textContent ?? "";
   expect(text).toContain("z-arch");
   expect(text).toContain("Seen 5m ago");
   expect(text).toContain("https://t3.z-arch.mesh.noqer.com");
   expect(text).toContain("Never seen");
+  expect(text).toContain("Tunnel up");
+  expect(text).toContain("T3 unavailable for 2m");
+  expect(text).toContain("Direct (LAN)");
+  expect(text).toContain("Tunnel down");
+  expect(text).toContain("T3 status unknown");
+  expect(text).toContain("Viewer host");
+  expect(text).toContain("T3 reachable");
+  expect(text).toContain("Machine list checked");
+  expect(text).toContain("T3 status checked");
   expect(
     [...container.querySelectorAll("[data-dot]")].map((dot) => dot.getAttribute("data-dot")),
-  ).toEqual(["connected", "available"]);
+  ).toEqual(["connected", "available", "connected"]);
 });
 
 it("opens a paired machine's environment and pairs the others", () => {
@@ -189,13 +288,22 @@ it("keeps the last list on screen beside an error", () => {
   const { container } = render({
     state: state({
       machines: [machine("z-arch", true, NOW)],
+      checkedAt: NOW - 120_000,
       problem: { kind: "unavailable", message: "Network request failed" },
     }),
   });
   expect(container.textContent).toContain("z-arch");
+  expect(container.textContent).toContain("Showing the last list from 2m ago.");
   expect(container.querySelector('[role="alert"]')?.textContent).toContain(
     "Network request failed",
   );
+});
+
+it("shows an unknown age for a legacy cache entry", () => {
+  const { container } = render({
+    state: state({ machines: [machine("z-arch", true, NOW)], fromCache: true }),
+  });
+  expect(container.textContent).toContain("Showing the last list. Its age is unknown.");
 });
 
 it("says so when the list is empty", () => {

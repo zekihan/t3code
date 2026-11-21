@@ -36,9 +36,12 @@ export function MeshRouteScreen() {
   const insets = useSafeAreaInsets();
   const { connectedEnvironments, onChangeConnectionPairingUrl } = useRemoteConnections();
   const mesh = useMeshMachines();
-  const [tab, setTab] = useState<"machines" | "fleet" | "device">("machines");
+  const [screen, setScreen] = useState<"machines" | "fleet" | "device" | "device-enrollment">(
+    "machines",
+  );
+  const tab = screen === "device-enrollment" ? "device" : screen;
   const focused = useIsFocused();
-  const fleet = useMeshFleet({ focused: focused && tab === "fleet" });
+  const fleet = useMeshFleet({ focused: focused && tab !== "device" });
   const enrollment = useMeshEnrollment();
   const localNetwork = useLocalNetworkAccess();
   const askLocalNetwork = localNetwork.ask;
@@ -52,11 +55,14 @@ export function MeshRouteScreen() {
   const [pulled, setPulled] = useState(false);
   const paired = pairedEnvironmentsByMachine(mesh.state.machines ?? [], connectedEnvironments);
 
+  const refresh = () => {
+    if (tab === "device") return enrollment.refresh();
+    if (tab === "fleet") return fleet.refresh();
+    return Promise.all([mesh.refresh(), fleet.refresh()]);
+  };
   const pull = () => {
     setPulled(true);
-    void (tab === "device" ? enrollment : tab === "fleet" ? fleet : mesh)
-      .refresh()
-      .finally(() => setPulled(false));
+    void refresh().finally(() => setPulled(false));
   };
   // Pairing stays manual: the form opens with the viewer's address and waits for the code.
   const pair = (machine: MeshMachine) => {
@@ -81,9 +87,8 @@ export function MeshRouteScreen() {
           disabled:
             tab === "device"
               ? enrollment.state.busy !== null
-              : (tab === "fleet" ? fleet : mesh).state.loading,
-          onPress: () =>
-            void (tab === "device" ? enrollment : tab === "fleet" ? fleet : mesh).refresh(),
+              : fleet.state.loading || (tab === "machines" && mesh.state.loading),
+          onPress: () => void refresh(),
         },
       ]}
     >
@@ -118,13 +123,18 @@ export function MeshRouteScreen() {
               { value: "device", label: gt("Device", { $context: "Mesh screen tab" }) },
             ]}
             selected={tab}
-            onSelect={setTab}
+            onSelect={setScreen}
           />
         </View>
         {tab === "device" ? (
           <MeshEnrollmentView
             state={enrollment.state}
-            onEnroll={enrollment.enroll}
+            startWithForm={screen === "device-enrollment"}
+            onEnroll={async (identity, token) => {
+              const success = await enrollment.enroll(identity, token);
+              if (success && identity === enrollment.state.status?.identity) void mesh.refresh();
+              return success;
+            }}
             onRenew={() => void enrollment.renew()}
             onRemove={() => void enrollment.remove()}
           />
@@ -140,16 +150,21 @@ export function MeshRouteScreen() {
         ) : (
           <MeshMachinesView
             state={mesh.state}
-            now={mesh.state.now}
+            now={Math.max(mesh.state.now, fleet.state.now)}
+            fleet={fleet.state.problem === null ? fleet.state.fleet : null}
+            fleetCheckedAt={
+              fleet.state.problem === null && fleet.state.fleet ? fleet.state.now : null
+            }
             paired={paired}
             certificateWarning={
               mesh.alias ? clientCertificateWarning(mesh.status, undefined, m) : null
             }
+            enrollment={enrollment.state.status}
             onOpen={open}
             onPair={pair}
             onChooseCertificate={() => void mesh.chooseCertificate()}
-            onEnroll={enrollment.state.available ? () => setTab("device") : undefined}
-            onRetry={() => void mesh.refresh()}
+            onEnroll={enrollment.state.available ? () => setScreen("device-enrollment") : undefined}
+            onRetry={() => void refresh()}
           />
         )}
       </ScrollView>

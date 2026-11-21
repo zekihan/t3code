@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("../../lib/clientCertificates", () => ({
   clientCertificatesAvailable: true,
   chooseClientCertificate: mocks.choose,
+  selectedClientCertificate: () => mocks.alias,
 }));
 vi.mock("./useClientCertificateStatus", () => ({
   useClientCertificateStatus: () => ({ alias: mocks.alias, status: null }),
@@ -69,7 +70,8 @@ it("asks for the hub identity on the first open, then lists and shares it with t
   expect(mocks.choose).toHaveBeenCalledWith(MESH_HUB_URL);
   expect(latest.state.machines).toEqual([machine]);
   expect(mocks.sync).toHaveBeenCalledWith({}, [machine]);
-  expect(mocks.save).toHaveBeenCalledWith([machine]);
+  expect(latest.state.checkedAt).toEqual(expect.any(Number));
+  expect(mocks.save).toHaveBeenCalledWith([machine], latest.state.checkedAt);
   unmount();
 });
 
@@ -128,13 +130,27 @@ it("leaves every alias alone when the hub refuses the identity", async () => {
   unmount();
 });
 
+it("records which enrolled credential the hub refused", async () => {
+  mocks.alias = "enrolled:device-z-phone-mesh";
+  mocks.fetch.mockResolvedValue({ kind: "refused", status: 403 });
+  const unmount = await open();
+  expect(latest.state.problem).toEqual({
+    kind: "refused",
+    status: 403,
+    credential: { alias: mocks.alias, startedAt: expect.any(Number) },
+  });
+  unmount();
+});
+
 it("shows the saved list first and keeps it when the hub cannot be reached", async () => {
   mocks.alias = "hub-id";
-  mocks.load.mockResolvedValue([machine]);
+  const checkedAt = Date.parse("2026-11-18T12:00:00Z");
+  mocks.load.mockResolvedValue({ machines: [machine], checkedAt });
   mocks.fetch.mockResolvedValue({ kind: "unavailable", message: "Network request failed" });
   const unmount = await open();
   expect(latest.state.machines).toEqual([machine]);
   expect(latest.state.fromCache).toBe(true);
+  expect(latest.state.checkedAt).toBe(checkedAt);
   expect(latest.state.problem).toEqual({ kind: "unavailable", message: "Network request failed" });
   expect(mocks.sync).not.toHaveBeenCalled();
   unmount();

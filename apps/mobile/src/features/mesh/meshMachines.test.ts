@@ -94,11 +94,15 @@ it("reads online only from a literal true and an unreadable last seen as never",
 
 it("round-trips through the saved cache and revalidates what it reads", () => {
   const machines = parseMeshMachines({ machines: [arch] })!;
-  expect(readCachedMeshMachines(serializeMeshMachines(machines))).toEqual(machines);
+  const checkedAt = Date.parse("2026-11-18T12:00:00Z");
+  expect(readCachedMeshMachines(serializeMeshMachines(machines, checkedAt))).toEqual({
+    machines,
+    checkedAt,
+  });
   const tampered = JSON.stringify({
     machines: [{ ...machines[0], viewerOrigin: "https://t3.evil.example" }, machines[0]],
   });
-  expect(readCachedMeshMachines(tampered)).toEqual(machines);
+  expect(readCachedMeshMachines(tampered)).toEqual({ machines, checkedAt: null });
   expect(readCachedMeshMachines("not json")).toBeNull();
   expect(readCachedMeshMachines(null)).toBeNull();
   expect(readCachedMeshMachines(JSON.stringify({ machines: 3 }))).toBeNull();

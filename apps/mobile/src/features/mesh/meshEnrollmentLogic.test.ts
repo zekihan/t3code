@@ -5,6 +5,7 @@ import {
   DEVICE_IDENTITY,
   IDENTITY_SUGGESTIONS,
   describeEnrollmentFailure,
+  describeMeshIdentityWarning,
   identityProblem,
   isEnrolledAlias,
   renewNotice,
@@ -60,6 +61,23 @@ it("recognises the enrolled alias the transport reports", () => {
   expect(isEnrolledAlias("my-keychain-alias")).toBe(false);
   expect(isEnrolledAlias(null)).toBe(false);
   expect(isEnrolledAlias(undefined)).toBe(false);
+});
+
+it("attributes hub refusals to the enrollment used for the request", () => {
+  const refusal = { alias: "enrolled:device-z-phone-mesh", startedAt: NOW };
+  expect(describeMeshIdentityWarning(status(), refusal)?.kind).toBe("refused");
+  expect(describeMeshIdentityWarning(status({ issuedAt: NOW + 1 }), refusal)).toBeNull();
+  expect(
+    describeMeshIdentityWarning(status({ identity: "device-z-tablet-mesh" }), refusal),
+  ).toBeNull();
+});
+
+it("warns on the Machines screen when the enrolled certificate expired or its key is gone", () => {
+  for (const state of ["expired", "key-missing"] as const) {
+    const warning = describeMeshIdentityWarning(status({ state }), undefined);
+    expect(warning?.kind).toBe("refused");
+    expect(warning?.message).toMatch(/Re-enroll this device with a new token/);
+  }
 });
 
 it("maps each native error code to a clear title and keeps the native message", () => {
