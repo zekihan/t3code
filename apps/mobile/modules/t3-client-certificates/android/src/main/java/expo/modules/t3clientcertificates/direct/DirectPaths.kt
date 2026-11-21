@@ -9,6 +9,7 @@ import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.Socket
 import java.net.URI
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
@@ -52,6 +53,10 @@ internal data class DirectStatus(
   val trustFetchedAt: Long?,
   val routeSavedAt: Long?
 )
+
+internal data class DirectCheck(val at: Long, val result: String) {
+  fun toMap() = mapOf("at" to at, "result" to result)
+}
 
 /** An open stream's machine and whether it was given the direct path. */
 private class OpenStream(val machine: String, val identity: IdentityKind?) {
@@ -100,6 +105,8 @@ internal class DirectPaths(
   /** Called when the verified listener's checks or a direct failure need the stream process ended. */
   private val streamsLost: (machine: String) -> Unit = {}
 ) : DirectRouter {
+  val decisions = DirectDecisionLog(clock)
+
   private val lock = ReentrantLock()
   private val changed = lock.newCondition()
   private val model = DirectPathModel(clock)
@@ -114,6 +121,7 @@ internal class DirectPaths(
       ::verifyPeer,
       limits,
       onRefused = { machine, refused ->
+        decisions.record("fallback", FailureKind.CERTIFICATE.code, machine)
         mutate { model.directBroke(machine, FailureKind.CERTIFICATE, refused.failure.message) }
       }
     )
@@ -127,7 +135,9 @@ internal class DirectPaths(
       deadlines
     )
 
-  private val probing = mutableSetOf<String>()
+  private val probing = mutableMapOf<String, CompletableFuture<String>>()
+  private val lastProbes = mutableMapOf<String, DirectCheck>()
+  private var lastHomeCheck: DirectCheck? = null
   private val announced = mutableMapOf<String, String>()
   private val wasDirect = mutableMapOf<String, Boolean>()
   private val agentResults = java.util.concurrent.ConcurrentHashMap<String, AgentCheckResult>()
@@ -185,6 +195,7 @@ internal class DirectPaths(
   /** The phone's network changed: nothing learned on the old one applies. */
   fun networkChanged() {
     log("network changed")
+    decisions.record("network", "changed")
     mutate {
       model.networkChanged()
       hubSettledEpoch = -1
@@ -194,7 +205,11 @@ internal class DirectPaths(
 
   /** The path state forgets everything: the device is no longer enrolled for mesh hosts. */
   fun forget() {
-    mutate { model.forget() }
+    mutate {
+      model.forget()
+      lastProbes.clear()
+      lastHomeCheck = null
+    }
     store.save(DirectSnapshot(null, emptyMap()))
   }
 
@@ -206,7 +221,10 @@ internal class DirectPaths(
       while (true) {
         decidedLocked(machine)?.let { return it }
         val remaining = TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime())
-        if (remaining <= 0) return ActivePath(false, reason = ViewerReason.PENDING)
+        if (remaining <= 0) {
+          decisions.record("fallback", ViewerReason.PENDING.code, machine)
+          return ActivePath(false, reason = ViewerReason.PENDING)
+        }
         changed.await(minOf(remaining, timings.recheckMs), TimeUnit.MILLISECONDS)
       }
     }
@@ -267,6 +285,7 @@ internal class DirectPaths(
   override fun directFailed(machine: String, error: IOException, freshConnection: Boolean) {
     val (kind, detail) = classifyFailure(error, agentResults[machine], null, freshConnection)
     log("direct request to $machine failed (${kind.code}): $detail")
+    decisions.record("fallback", kind.code, machine)
     mutate { if (model.directBroke(machine, kind, detail)) startProbeLocked(machine) }
     if (kind.shown) relay.closeTunnels(machine)
   }
@@ -316,6 +335,30 @@ internal class DirectPaths(
   fun status(machine: String): DirectStatus =
     lock.withLock { statusLocked(machine) }
 
+  fun diagnostics(machine: String): Map<String, Any?> =
+    lock.withLock {
+      val status = statusLocked(machine)
+      mapOf(
+        "path" to if (status.direct) "direct" else "viewer",
+        "reason" to status.reason?.code,
+        "trustFetchedAt" to status.trustFetchedAt,
+        "homeCheck" to lastHomeCheck?.toMap(),
+        "probe" to lastProbes[machine]?.toMap()
+      )
+    }
+
+  fun testDirectPath(machine: String): CompletableFuture<String> {
+    refreshLocalNetwork()
+    return lock.withLock {
+      val decision = model.decision(machine)
+      if (decision is PathDecision.Viewer && decision.reason != ViewerReason.PROBE_FAILED) {
+        CompletableFuture.completedFuture(decision.reason.code)
+      } else {
+        startProbeLocked(machine)
+      }
+    }
+  }
+
   /**
    * The route for a stream of [machine], or null for the viewer host. It never waits: a stream opens
    * on the main thread, after the environment's own requests have settled the decision. While any
@@ -336,6 +379,10 @@ internal class DirectPaths(
     lock.withLock {
       streamSessions[sessionId] = OpenStream(machine, if (routing != null) kind else null)
       if (routing != null) streamIdleStop?.cancel(false)
+      decisions.record("stream", if (routing != null) "direct" else "viewer", machine)
+      if (kind != null && routing == null) {
+        decisions.record("fallback", "stream-unavailable", machine)
+      }
     }
     return routing
   }
@@ -403,16 +450,27 @@ internal class DirectPaths(
           // The gate describes the network the request was made on.
           val gate = if (epoch == model.epoch) fleet.value.gate else model.gate
           model.hubAnswered(gate, fleet.value.routes)
+          lastProbes.keys.retainAll(model.routes.keys)
           lastHubAnswerAt = clock()
           store.save(model.snapshot())
         }
         is HubReply.Failed -> if (epoch == model.epoch) model.hubFailed()
       }
-      if (epoch == model.epoch) hubSettledEpoch = epoch
+      val result =
+        when (fleet) {
+          is HubReply.Ok -> fleet.value.gate.name.lowercase()
+          is HubReply.Failed -> "failed"
+        }
+      decisions.record("home", result)
+      if (epoch == model.epoch) {
+        hubSettledEpoch = epoch
+        if (model.enrolled) lastHomeCheck = DirectCheck(clock(), result)
+      }
       lastHubAt = clock()
     }
     val trust = hubAttempt(hubTrust)
     log("hub contact: trust ${describe(trust)}")
+    decisions.record("trust", if (trust is HubReply.Ok) "ok" else "failed")
     var again = false
     mutate {
       if (trust is HubReply.Ok) {
@@ -443,14 +501,14 @@ internal class DirectPaths(
 
   // ---- probes ----
 
-  private fun startProbeLocked(machine: String) {
-    if (!probing.add(machine)) return
-    val epoch = model.epoch
-    worker.execute { runProbe(machine, epoch) }
-  }
+  private fun startProbeLocked(machine: String): CompletableFuture<String> =
+    probing.getOrPut(machine) {
+      val epoch = model.epoch
+      CompletableFuture.supplyAsync({ runProbe(machine, epoch) }, worker)
+    }
 
   @Suppress("TooGenericExceptionCaught") // Any failure of a probe is its outcome.
-  private fun runProbe(machine: String, epoch: Long) {
+  private fun runProbe(machine: String, epoch: Long): String {
     val route = lock.withLock { model.routeFor(machine) }
     val outcome: ProbeOutcome =
       if (route == null) {
@@ -464,14 +522,24 @@ internal class DirectPaths(
         }
       }
     log("probe of $machine: ${describeOutcome(outcome)}")
+    var result = "stale"
     mutate {
       probing.remove(machine)
+      val current = epoch == model.epoch
       when (outcome) {
-        is ProbeOutcome.Reached ->
+        is ProbeOutcome.Reached -> {
           model.probeSucceeded(machine, epoch, outcome.identity, outcome.leafFingerprint)
-        is ProbeOutcome.Failed -> model.probeFailed(machine, epoch, outcome.kind, outcome.detail)
+          if (current) result = "ok"
+        }
+        is ProbeOutcome.Failed -> {
+          model.probeFailed(machine, epoch, outcome.kind, outcome.detail)
+          if (current) result = outcome.kind.code
+        }
       }
+      if (current) lastProbes[machine] = DirectCheck(clock(), result)
+      decisions.record("probe", result, machine)
     }
+    return result
   }
 
   private fun describeOutcome(outcome: ProbeOutcome) =
@@ -573,6 +641,11 @@ internal class DirectPaths(
           val before = wasDirect[machine] ?: false
           wasDirect[machine] = status.direct
           changes += PathChange(machine, before, status.direct)
+          decisions.record(
+            "path",
+            if (status.direct) "direct" else checkNotNull(status.reason).code,
+            machine
+          )
           log(
             "path of $machine: ${if (status.direct) "direct" else "viewer host (${status.reason?.code})"}"
           )

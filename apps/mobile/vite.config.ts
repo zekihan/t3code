@@ -63,6 +63,7 @@ const reactTests = [
   "src/features/mesh/MeshMachinesView.test.tsx",
   "src/features/mesh/useMeshMachines.test.tsx",
   "src/features/mesh/MeshFleetView.test.tsx",
+  "src/features/mesh/MeshDiagnosticsView.test.tsx",
   "src/features/mesh/MeshConnectionDetails.test.tsx",
   "src/features/mesh/useMeshFleet.test.tsx",
   "src/features/mesh/MeshEnrollmentView.test.tsx",

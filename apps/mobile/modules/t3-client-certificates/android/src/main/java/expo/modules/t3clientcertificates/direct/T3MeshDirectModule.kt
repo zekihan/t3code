@@ -1,5 +1,6 @@
 package expo.modules.t3clientcertificates.direct
 
+import expo.modules.kotlin.Promise
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import expo.modules.t3clientcertificates.T3CertificateTransport
@@ -36,18 +37,42 @@ class T3MeshDirectModule : Module() {
     Function("hubContacted") {
       if (::transport.isInitialized) transport.direct.paths.refreshHub(force = false)
     }
-    AsyncFunction("getStatus") { url: String -> statusOf(url) }
+    AsyncFunction("getStatus") { url: String ->
+      machineOf(url)?.let { transport.direct.paths.status(it).toMap() }
+    }
+    Function("isProviderFactoryInstalled") { transport.isProviderFactoryInstalled() }
+    AsyncFunction("getDiagnostics") { url: String ->
+      machineOf(url)?.let(transport.direct.paths::diagnostics)
+    }
+    AsyncFunction("getDecisionLog") {
+      transport.direct.paths.decisions.snapshot().map(DirectDecision::toMap)
+    }
+    AsyncFunction("testDirectPath") { url: String, promise: Promise ->
+      testDirectPath(url, promise)
+    }
   }
 
-  private fun statusOf(url: String): Map<String, Any?>? {
-    val machine =
-      try {
-        machineOfViewerHost(URI(url).host)
-      } catch (_: java.net.URISyntaxException) {
-        null
-      } ?: return null
-    return transport.direct.paths.status(machine).toMap()
+  private fun testDirectPath(url: String, promise: Promise) {
+    val machine = machineOf(url)
+    if (machine == null) {
+      promise.resolve(null)
+      return
+    }
+    transport.direct.paths.testDirectPath(machine).whenComplete { result, error ->
+      if (error == null) {
+        promise.resolve(result)
+      } else {
+        promise.reject("MESH_DIRECT_PROBE", "The direct probe could not complete.", error)
+      }
+    }
   }
+
+  private fun machineOf(url: String): String? =
+    try {
+      machineOfViewerHost(URI(url).host)
+    } catch (_: java.net.URISyntaxException) {
+      null
+    }
 }
 
 private fun DirectFailure.toMap() =

@@ -23,3 +23,9 @@ export const notifyHubContacted = (): void => {
 export const onDirectChanged = (
   listener: (event: DirectChangedEvent) => void,
 ): { remove(): void } => native?.addListener("directChanged", listener) ?? { remove() {} };
+
+export const isProviderFactoryInstalled = () => native?.isProviderFactoryInstalled?.() ?? null;
+export const getDirectDiagnostics = async (url: string) =>
+  (await native?.getDiagnostics?.(url)) ?? null;
+export const getDirectDecisionLog = async () => (await native?.getDecisionLog?.()) ?? [];
+export const testDirectPath = async (url: string) => (await native?.testDirectPath?.(url)) ?? null;

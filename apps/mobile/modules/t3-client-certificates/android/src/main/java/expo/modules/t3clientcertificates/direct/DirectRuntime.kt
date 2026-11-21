@@ -93,7 +93,10 @@ internal class DirectRuntime(
     ).also { it.evictConnections = evictConnections }
 
   private val pins = PathPins()
-  private val interceptor = DirectRoutingInterceptor(paths, pins)
+  private val interceptor =
+    DirectRoutingInterceptor(paths, pins) { machine ->
+      paths.decisions.record("fallback", "proxy-unavailable", machine)
+    }
   private val localNetworkErrors = LocalNetworkErrorInterceptor(localNetwork)
   private val guard = DirectPathGuard()
   private val selector = DirectProxySelector(paths, pins)

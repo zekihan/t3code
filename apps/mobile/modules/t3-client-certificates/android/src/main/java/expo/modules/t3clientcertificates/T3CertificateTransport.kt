@@ -127,6 +127,8 @@ class T3CertificateTransport private constructor(private val context: Context) {
     direct.start()
   }
 
+  internal fun isProviderFactoryInstalled() = providerFactory.isInstalled()
+
   internal fun generation(origin: String): Any = generations.generation(origin)
 
   internal fun invalidate(origin: String) {

@@ -38,7 +38,11 @@ export function describePathReason(
       : null;
   }
   if (status.reason === null || status.reason === "not-enrolled") return null;
-  return resolve(REASONS[status.reason]);
+  return describeViewerReason(status.reason, resolve);
+}
+
+export function describeViewerReason(reason: string, resolve: MessageResolver = m): string | null {
+  return Object.hasOwn(REASONS, reason) ? resolve(REASONS[reason as DirectViewerReason]) : null;
 }
 
 /** A certificate or authorization failure on the direct path, worded for the person. */

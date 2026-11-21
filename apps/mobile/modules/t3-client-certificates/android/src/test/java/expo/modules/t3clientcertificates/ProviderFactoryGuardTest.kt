@@ -6,6 +6,7 @@ import javax.net.ssl.HostnameVerifier
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import org.junit.After
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
@@ -22,6 +23,7 @@ class ProviderFactoryGuardTest {
   fun reads_the_provider_factory() {
     guard.install()
     assertSame(guard.factory, currentProviderFactory())
+    assertTrue(guard.isInstalled())
   }
 
   @Test
@@ -34,6 +36,7 @@ class ProviderFactoryGuardTest {
       }
     )
 
+    assertFalse(guard.isInstalled())
     guard.reassert()
 
     assertSame(guard.factory, currentProviderFactory())

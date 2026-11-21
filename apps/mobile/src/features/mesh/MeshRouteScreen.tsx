@@ -19,6 +19,8 @@ import { SettingsScreen } from "../settings/components/SettingsScreen";
 import { pairedEnvironmentsByMachine } from "./meshEnvironments";
 import type { MeshMachine } from "./meshMachines";
 import { meshPairingOriginAtom } from "./meshPairingPrefill";
+import { MeshDiagnosticsView } from "./MeshDiagnosticsView";
+import { meshDiagnosticsRunner, pairedMeshDiagnosticTargets } from "./meshDiagnosticsSocket";
 import { MeshEnrollmentView } from "./MeshEnrollmentView";
 import { MeshFleetView } from "./MeshFleetView";
 import { MeshMachinesView } from "./MeshMachinesView";
@@ -60,6 +62,7 @@ export function MeshRouteScreen() {
     if (focused && enrolled) void askLocalNetwork("mesh-screen");
   }, [focused, enrolled, askLocalNetwork]);
   const [pulled, setPulled] = useState(false);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
   const paired = pairedEnvironmentsByMachine(mesh.state.machines ?? [], connectedEnvironments);
 
   const refresh = () => {
@@ -87,6 +90,19 @@ export function MeshRouteScreen() {
   return (
     <SettingsScreen
       title={m(MESH_ROUTE_TITLE)}
+      menus={[
+        {
+          title: gt("Mesh options"),
+          icon: "ellipsis.circle",
+          items: [
+            {
+              id: "diagnostics",
+              title: gt("Diagnostics"),
+              onPress: () => setShowDiagnostics(true),
+            },
+          ],
+        },
+      ]}
       actions={[
         {
           accessibilityLabel:
@@ -181,6 +197,13 @@ export function MeshRouteScreen() {
           />
         )}
       </ScrollView>
+      {showDiagnostics ? (
+        <MeshDiagnosticsView
+          runner={meshDiagnosticsRunner}
+          getTargets={pairedMeshDiagnosticTargets}
+          onClose={() => setShowDiagnostics(false)}
+        />
+      ) : null}
     </SettingsScreen>
   );
 }

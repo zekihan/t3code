@@ -53,9 +53,31 @@ export interface DirectChangedEvent {
   readonly origin: string;
 }
 
+export interface DirectCheckRecord {
+  readonly at: number;
+  readonly result: string;
+}
+
+export interface DirectDiagnostics {
+  readonly path: "direct" | "viewer";
+  readonly reason: DirectViewerReason | null;
+  readonly trustFetchedAt: number | null;
+  readonly homeCheck: DirectCheckRecord | null;
+  readonly probe: DirectCheckRecord | null;
+}
+
+export interface DirectDecisionEntry extends DirectCheckRecord {
+  readonly kind: string;
+  readonly host: string | null;
+}
+
 /** The Android native module. */
 export interface MeshDirectNative {
   getStatus(url: string): Promise<DirectStatus | null>;
+  isProviderFactoryInstalled?(): boolean;
+  getDiagnostics?(url: string): Promise<DirectDiagnostics | null>;
+  getDecisionLog?(): Promise<readonly DirectDecisionEntry[]>;
+  testDirectPath?(url: string): Promise<string | null>;
   /** The app just contacted the hub: the native side refreshes trust and routes. */
   hubContacted(): void;
   addListener(

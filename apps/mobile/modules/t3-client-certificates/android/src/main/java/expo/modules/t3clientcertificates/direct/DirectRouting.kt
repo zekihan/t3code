@@ -113,14 +113,18 @@ internal class PathPins {
  */
 internal class DirectRoutingInterceptor(
   private val router: DirectRouter,
-  private val pins: PathPins
+  private val pins: PathPins,
+  private val proxyUnavailable: (String) -> Unit = {}
 ) : Interceptor {
   override fun intercept(chain: Interceptor.Chain): Response {
     val request = chain.request()
     val machine = machineOfViewerHost(request.url.host)?.takeIf { isViewerUrl(request.url) }
     if (machine == null) return chain.proceed(request)
     var path = router.awaitPath(machine)
-    if (path.direct && router.relayAddress() == null) path = ActivePath.VIEWER
+    if (path.direct && router.relayAddress() == null) {
+      proxyUnavailable(machine)
+      path = ActivePath.VIEWER
+    }
     var mismatches = 0
     while (true) {
       val attempt = Attempt(path.direct)

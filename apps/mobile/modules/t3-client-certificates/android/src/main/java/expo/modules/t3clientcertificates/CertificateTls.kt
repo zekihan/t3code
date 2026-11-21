@@ -196,6 +196,8 @@ internal class ProviderFactoryGuard(
 
   fun install() = OkHttpClientProvider.setOkHttpClientFactory(factory)
 
+  fun isInstalled() = currentProviderFactory() === factory
+
   fun reassert() {
     val current = currentProviderFactory()
     if (current !== factory) {
