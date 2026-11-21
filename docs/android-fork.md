@@ -1,6 +1,6 @@
 # T3 Code Android fork with mTLS
 
-Status: proposed. Date: 2026-11-17.
+Status: A1 to A5, A7 and A8 shipped; A6 skipped. Date: 2026-11-17.
 
 A personal fork of the T3 Code mobile app (`pingdotgg/t3code`, `apps/mobile`) that
 connects to the mesh viewer hosts with the phone's client certificate, plus a few
@@ -566,6 +566,8 @@ hardware-specific behavior.
 - A7, 2026-11-18: hub 0.2.0, homelab #143 and #144, app `+mesh.5`; the phone and
   the tablet are enrolled as `device-z-phone-mesh` and `device-z-tablet-mesh`.
 - A8, 2026-11-18: hub and agents 0.3.0 (homelab #145 and #146), the device
-  listener bound on 27443 on all three machines; app `+mesh.6`. Not yet checked on
-  a device: a stream through the direct path, and the phone at home with the hub
-  scaled to zero.
+  listener bound on 27443 on all three machines; app `+mesh.6`. Checked on the
+  phone with `+mesh.7`: with the hub scaled to zero for about two minutes, chat and
+  streams reached z-arch over the direct path (29 device sessions and 23 streams in
+  its log). The earlier failure was a stale away verdict that outlived the stopped
+  hub, fixed in "Connect directly at home".
