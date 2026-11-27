@@ -432,7 +432,7 @@ directly.
     at the input commit. It signs with `apksigner` from build tools pinned on
     `main`, reads the APK's fields only with those tools, validates each by regex
     before use, and checks: application ID `com.noqer.t3mesh`, the expected
-    signing certificate fingerprint, `versionName`, `versionCode`, the intent
+    APK v3 signing lineage and its latest certificate, `versionName`, `versionCode`, the intent
     filters, and Expo Updates disabled in the manifest. It refuses a
     `versionCode` at or below the highest published one, then creates the tag on
     the existing commit and publishes the release.
@@ -460,8 +460,9 @@ directly.
 - **Accepted risk.** Clean rebases publish without review. A compromised upstream
   or dependency change reaches both devices, signed, within a week.
 - **Distribution.** Each build is a GitHub Release on the fork with the signed APK.
-  Obtainium on each device tracks those releases and installs updates; Android
-  refuses an update signed with a different key. No index, index key or hosting.
+  Obtainium on each device tracks those releases and installs updates. Android 9
+  and later can follow the signing lineage when updating from the original key.
+  No index, index key or hosting.
   The release tag is `v` followed by the `versionName`, so Obtainium's version
   detection can compare them; it offers any release whose tag differs from the
   installed version, which also covers a rollback naming an older nightly. A2

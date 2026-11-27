@@ -2,10 +2,9 @@
 # Inspect an APK with the pinned tools and check it against what the build
 # claimed and what the fork requires.
 #
-# usage: verify-apk.sh <apk>
+# usage: verify-apk.sh <apk> [--signed]
 # env:   BUILD_TOOLS_DIR
 #        EXPECTED_VERSION_NAME EXPECTED_VERSION_CODE   (already validated)
-#        EXPECTED_CERT_SHA256   when set, the APK must be signed and match it
 # Prints application_id, version_code, version_name, target_sdk and, when
 # checked, cert_sha256.
 set -euo pipefail
@@ -14,7 +13,9 @@ here="$(dirname "${BASH_SOURCE[0]}")"
 source "$here/lib.sh"
 
 apk="${1:?apk}"
+mode="${2:-}"
 tools="${BUILD_TOOLS_DIR:?}"
+[[ -z $mode || $mode == --signed ]] || die "unknown verification mode: $mode"
 [[ -f $apk && ! -L $apk ]] || die "$apk is not a regular file"
 size="$(stat -c %s "$apk")"
 ((size > 0 && size <= 400 * 1024 * 1024)) || die "APK size $size is outside the accepted range"
@@ -32,11 +33,16 @@ get() { sed -n "s/^$1=//p" <<<"$badging"; }
 TARGET_SDK="$(get target_sdk)" "$here/apk-checks.sh" manifest "$work/manifest.txt" >/dev/null
 echo "$badging"
 
-if [[ -n ${EXPECTED_CERT_SHA256:-} ]]; then
-  expected="$(tr -d ':' <<<"$EXPECTED_CERT_SHA256" | tr '[:upper:]' '[:lower:]')"
-  require_match "expected certificate fingerprint" "$RE_SHA256" "$expected"
-  java -jar "$tools/lib/apksigner.jar" verify --verbose --print-certs "$apk" >"$work/certs.txt"
+if [[ $mode == --signed ]]; then
+  apksigner=(java -jar "$tools/lib/apksigner.jar")
+  "${apksigner[@]}" verify --verbose --print-certs "$apk" >"$work/certs.txt"
+  grep -Fxq 'Verified using v3 scheme (APK Signature Scheme v3): true' "$work/certs.txt" ||
+    die "APK did not verify with the v3 signing scheme"
   cert="$("$here/apk-checks.sh" certs "$work/certs.txt")"
-  [[ "${cert#cert_sha256=}" == "$expected" ]] || die "signing certificate is not the expected one"
+  "${apksigner[@]}" lineage --in "$here/../signing/t3mesh.lineage" --print-certs --verbose >"$work/expected.txt"
+  "${apksigner[@]}" lineage --in "$apk" --print-certs --verbose >"$work/actual.txt"
+  cmp -s "$work/expected.txt" "$work/actual.txt" || die "APK signing lineage differs from the release lineage"
+  expected="$(sed -nE 's/^Signer #[0-9]+ in lineage certificate SHA-256 digest: //p' "$work/expected.txt" | tail -n 1)"
+  [[ "${cert#cert_sha256=}" == "$expected" ]] || die "APK signing certificate is not the latest in the release lineage"
   echo "$cert"
 fi
