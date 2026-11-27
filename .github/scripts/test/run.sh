@@ -224,22 +224,31 @@ cat >"$bt/aapt2" <<STUB
 #!/usr/bin/env bash
 if [[ \$2 == badging ]]; then cat "$T/fixtures/badging.txt"; else cat "${MANIFEST_FIXTURE:-$T/fixtures/manifest-good.txt}"; fi
 STUB
-cat >"$bt/java" <<STUB
+cat >"$bt/java" <<'STUB'
 #!/usr/bin/env bash
-cat "$T/fixtures/certs-good.txt"
+case "$3" in
+  verify) cat "$CERT_FIXTURE" ;;
+  lineage)
+    if [[ $5 == *.lineage || ${LINEAGE_MATCHES:-1} == 1 ]]; then
+      printf 'Signer #1 in lineage certificate SHA-256 digest: %s\n' "$LINEAGE_CERT"
+    else
+      echo 'Signer #1 in lineage certificate SHA-256 digest: different'
+    fi
+    ;;
+  *) exit 1 ;;
+esac
 STUB
 chmod +x "$bt/aapt2" "$bt/java"
 echo apk >"$tmp/app.apk"
 export BUILD_TOOLS_DIR="$bt" EXPECTED_VERSION_NAME="0.1.11-nightly.20261117.4814+mesh.1" EXPECTED_VERSION_CODE=481401
 expect_ok "verify-apk: unsigned checks" "$S/verify-apk.sh" "$tmp/app.apk"
-(
-  PATH="$bt:$PATH"
-  EXPECTED_CERT_SHA256=01:23:45:67:89:AB:CD:EF:01:23:45:67:89:AB:CD:EF:01:23:45:67:89:AB:CD:EF:01:23:45:67:89:AB:CD:EF "$S/verify-apk.sh" "$tmp/app.apk"
-) >/dev/null 2>&1 && ok || bad "verify-apk: matching certificate"
-(
-  PATH="$bt:$PATH"
-  EXPECTED_CERT_SHA256=$(printf 'f%.0s' {1..64}) "$S/verify-apk.sh" "$tmp/app.apk"
-) >"$tmp/o.txt" 2>&1 && bad "verify-apk: wrong certificate accepted" || { grep -q "not the expected" "$tmp/o.txt" && ok || bad "verify-apk: wrong certificate message" "$(cat "$tmp/o.txt")"; }
+verify_signed=(env PATH="$bt:$PATH" CERT_FIXTURE="$T/fixtures/certs-good.txt"
+  LINEAGE_CERT=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef)
+expect_ok "verify-apk: matching v3 signature and lineage" "${verify_signed[@]}" "$S/verify-apk.sh" "$tmp/app.apk" --signed
+expect_fail "verify-apk: wrong lineage" "differs from the release lineage" "${verify_signed[@]}" LINEAGE_MATCHES=0 "$S/verify-apk.sh" "$tmp/app.apk" --signed
+expect_fail "verify-apk: wrong signer" "not the latest" "${verify_signed[@]}" LINEAGE_CERT="$(printf 'f%.0s' {1..64})" "$S/verify-apk.sh" "$tmp/app.apk" --signed
+sed 's/Signature Scheme v3): true/Signature Scheme v3): false/' "$T/fixtures/certs-good.txt" >"$tmp/no-v3.txt"
+expect_fail "verify-apk: v2 only" "did not verify with the v3 signing scheme" "${verify_signed[@]}" CERT_FIXTURE="$tmp/no-v3.txt" "$S/verify-apk.sh" "$tmp/app.apk" --signed
 expect_fail "verify-apk: versionCode mismatch" "versionCode differs" env EXPECTED_VERSION_CODE=1 "$S/verify-apk.sh" "$tmp/app.apk"
 expect_fail "verify-apk: versionName mismatch" "versionName differs" env EXPECTED_VERSION_NAME=0.0.1-nightly.20260101.1+mesh.1 "$S/verify-apk.sh" "$tmp/app.apk"
 expect_fail "verify-apk: applicationId mismatch" "applicationId" env EXPECTED_APPLICATION_ID=com.other.app "$S/verify-apk.sh" "$tmp/app.apk"

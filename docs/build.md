@@ -10,8 +10,6 @@ Repository settings live in homelab `terraform/git`, not here.
   - Secrets: `ANDROID_SIGNING_KEYSTORE_B64` (base64 of the keystore),
     `ANDROID_SIGNING_KEYSTORE_PASSWORD`, `ANDROID_SIGNING_KEY_ALIAS`,
     `ANDROID_SIGNING_KEY_PASSWORD`.
-  - Variable: `ANDROID_SIGNING_CERT_SHA256`, the signing certificate's SHA-256
-    (hex, colons optional). The release job refuses any other certificate.
 - Actions enabled, with `main` as the default branch (schedules run from it).
 
 ## Workflows
@@ -45,6 +43,15 @@ that set, so a set must never change or be deleted after a release used it. To
 change a version, add a new set file and point `current` at it in a commit to
 `main`; workflows never push. A value still reading `TODO` fails the build.
 The `main` workflows read all of this from `main`, never from the artifact.
+
+## Android signing
+
+Release and rollback APKs require Android 9 (API 28) or later. They use the
+current release key and the APK v3 signing lineage in
+`.github/signing/t3mesh.lineage`. The publish job checks the embedded lineage
+and requires its latest certificate to match the verified APK signer.
+Android 7 and 8 cannot follow an APK v3 signing lineage and remain on their
+last compatible release.
 
 ## Known limits
 

@@ -30,5 +30,6 @@ java -jar "$tools/lib/apksigner.jar" sign \
   --ks-key-alias "$SIGNING_KEY_ALIAS" \
   --ks-pass env:SIGNING_KEYSTORE_PASSWORD \
   --key-pass env:SIGNING_KEY_PASSWORD \
-  --v1-signing-enabled false --v2-signing-enabled true --v3-signing-enabled true \
+  --lineage "$here/../signing/t3mesh.lineage" --rotation-min-sdk-version 28 \
+  --v1-signing-enabled false --v2-signing-enabled false --v3-signing-enabled true --v4-signing-enabled false \
   --out "$out" "$work/aligned.apk"
