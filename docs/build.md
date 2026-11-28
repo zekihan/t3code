@@ -53,6 +53,11 @@ and requires its latest certificate to match the verified APK signer.
 Android 7 and 8 cannot follow an APK v3 signing lineage and remain on their
 last compatible release.
 
+Preserve the predecessor's installed-data and signature-permission capabilities
+when extending the lineage. Android checks the latter when the update redeclares
+the app's existing signature permissions, including the AndroidX receiver
+permission. Test a full APK over the prior release on an emulator.
+
 ## Known limits
 
 - The build job's output is hostile; the release job checks the APK's fields with
